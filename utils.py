@@ -8,7 +8,7 @@ import torch.nn.functional as F
 # Params
 class OPT:
 
-    EPOCHS = 30
+    EPOCHS = 20
     TRAINING_BATCH_SIZE = 64
     VAL_BATCH_SIZE = 32
     LR = 1e-3
@@ -17,6 +17,7 @@ class OPT:
     NUM_CLASSES = 2
     LOG_EVERY = 1
     DEVICE = 'cuda'
+    MODEL = 'resnet18'
 
 
 def get_indices(data, x, y):
@@ -108,6 +109,6 @@ def train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer):
                         cumul_acc_val += (y_hat.argmax(dim=1) == y).sum().item()
                     
                     # Print measures
-                    log_metrics(train_loader, cumul_loss_train, cumul_acc_train, epoch, 'val', writer)
+                    log_metrics(val_loader, cumul_loss_val, cumul_acc_val, epoch, 'val', writer)
 
     
