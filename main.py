@@ -22,8 +22,15 @@ torch.manual_seed(OPT.SEED)
 random.seed(OPT.SEED)
 np.random.seed(OPT.SEED)
 
-train_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=True, download=False, transform=transforms.ToTensor())
-test_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=False, download=False, transform=transforms.ToTensor())
+trans = transforms.Compose([
+    transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
+    transforms.RandomHorizontalFlip(), 
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+
+train_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=True, download=False, transform=trans)
+test_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=False, download=False, transform=trans)
 len(train_cifar_data), len(test_cifar_data)
 
 
@@ -40,8 +47,8 @@ d2_tr, d2_val = Subset(train_cifar_data, d2_idx[:4500]), Subset(train_cifar_data
 
 
 # Model definition
-model =  timm.create_model('resnet18', pretrained=False, num_classes=2)
-model.to('cuda')
+model =  timm.create_model(OPT.MODEL, pretrained=False, num_classes=OPT.NUM_CLASSES)
+model.to(OPT.NUM_CLASSES)
 model.train()
 
 # Define loss function and optimizer
