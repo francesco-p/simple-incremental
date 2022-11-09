@@ -1,94 +1,75 @@
 
-from ssl import CertificateError
-from torch.utils.data import Subset
 import torch
-from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
 from opt import OPT
-# import chnklib
 import random
 import numpy as np
+import timm
+import matplotlib.pyplot as plt
+from models.resnet32 import resnet32
+
+def plot(bottom_line, top_line, continual, approach_name):
+    print(torch.tensor([x for y,x in continual]).mean(), torch.tensor([x for y,x in continual]).std())
+
+    fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(5,5))
+    ax.scatter(range(OPT.NUM_TASKS), [x for y,x in continual])
+    ax.plot([x for y,x in continual], label=approach_name)
+    ax.axhline(bottom_line, label='First Half', c='green', ls='-.')
+    ax.axhline(top_line, label='Second Half', c='red', ls='-.')
+
+    ax.set_ylim(bottom_line-0.01, top_line+0.01)
+    ax.set_xticks(range(OPT.NUM_TASKS))
+    ax.set_xlabel('tasks')
+    ax.set_ylabel('accuracy')
+    ax.legend()
+    plt.show()
+    plt.close()
 
 
-def set_seeds():
+def load_models(model_name, num_classes):
+
+    model_fh =  get_model(model_name, num_classes, pretrained=False)
+    model_fh.load_state_dict(torch.load(f'/home/francesco/Documents/single_task/chk/fh_0029.pt'))
+
+    model_sh =  get_model(model_name, num_classes, pretrained=False)
+    model_sh.load_state_dict(torch.load(f'/home/francesco/Documents/single_task/chk/sh_0029.pt'))
+
+    return model_fh, model_sh
+
+
+def get_model(model_name, num_classes, pretrained):
+
+    if model_name == 'resnet18':
+        model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
+    elif model_name == 'resnet32':
+        model = resnet32(num_classes=num_classes, pretrained=pretrained)
+    else:
+        NotImplementedError(f"Unknown model {model_name}")
+
+    return model
+
+
+def set_seeds(seed):
     """ Set reproducibility seeds """
-    torch.manual_seed(OPT.SEED)
-    random.seed(OPT.SEED)
-    np.random.seed(OPT.SEED)
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
 
 
-def prepare_tasks(data, num_tasks):
-    """ Split a dataset in a warmup task + a sequence of tasks. It selects half
-    of the dataset to be used as a warmup dataset and then returns a number of
-    continual tasks. Each task (both warmup and continual) are a train, val tuple
-    :returns tuple(tuple, list(tuples))
-    """
-
-    ### 1. Select half dataset
-    even_indices = [x for x in range(0, len(data), 2)]
-
-    # Select 90% to train and 10% to val
-    wrmp_split = int((len(even_indices)) * 0.9)
-    wrmp_train_indices =  even_indices[:wrmp_split]
-    wrmp_val_indices =  even_indices[wrmp_split:]
-
-    # Prepare loaders for wrmp
-    wrmp_train_sbs = torch.utils.data.Subset(data, wrmp_train_indices)
-    wrmp_val_sbs = torch.utils.data.Subset(data, wrmp_val_indices)
-    wrmp_train_loader = torch.utils.data.DataLoader(wrmp_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=True)
-    wrmp_val_loader = torch.utils.data.DataLoader(wrmp_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=True)
-    wrmp_task = (wrmp_train_loader, wrmp_val_loader)
-
-    ### 2. Select half dataset
-    odd_indices = [x for x in range(1, len(data), 2)]
-
-    # Select 90% to train and 10% to val
-    n_wrmp_split = int((len(odd_indices)) * 0.9)
-    n_wrmp_train_indices =  odd_indices[:n_wrmp_split]
-    n_wrmp_val_indices =  odd_indices[n_wrmp_split:]
-
-    # Prepare loaders for wrmp
-    n_wrmp_train_sbs = torch.utils.data.Subset(data, n_wrmp_train_indices)
-    n_wrmp_val_sbs = torch.utils.data.Subset(data, n_wrmp_val_indices)
-    n_wrmp_train_loader = torch.utils.data.DataLoader(n_wrmp_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=True)
-    n_wrmp_val_loader = torch.utils.data.DataLoader(n_wrmp_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=True)
-    n_wrmp_task = (n_wrmp_train_loader, n_wrmp_val_loader)
-
-    ### 3. Calculate a subtask split length
-    task_len = len(odd_indices) // num_tasks
-    task_split = int(task_len * 0.9)
-
-    # Construct continual tasks
-    tasks = []
-    for t in range(num_tasks):
-        # Selects subindices
-        start_idx = task_len * t
-        end_idx = start_idx + task_len
-        task_indices = odd_indices[start_idx:end_idx]
-        task_train_indices = task_indices[:task_split]
-        task_val_indices = task_indices[task_split:]
-
-        # Prepare loaders for each task
-        task_train_sbs = torch.utils.data.Subset(data, task_train_indices)
-        task_val_sbs = torch.utils.data.Subset(data, task_val_indices)
-        task_train_loader = torch.utils.data.DataLoader(task_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=True)
-        task_val_loader = torch.utils.data.DataLoader(task_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=True)
-        tasks.append((task_train_loader, task_val_loader))
-
-    return (wrmp_task, n_wrmp_task, tasks)
-
-
-def log_metrics(loader, seen, loss, acc, epoch, session, writer, tag):
+def log_metrics(seen, loss, acc, epoch, session, writer, tag):
     """ Prints metrics to screen and logs to tensorboard """
     loss /= seen
     acc /= seen
     print(f'        {session:<6} - l:{loss:.5f}  a:{acc:.5f}')
-    writer.add_scalar(f'{tag}/loss/{session}', loss, epoch)
-    writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
+
+    if OPT.LOG:
+        writer.add_scalar(f'{tag}/loss/{session}', loss, epoch)
+        writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
+
 
 
 def train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer, tag, scheduler=False):
-
+    model.to(OPT.DEVICE)
     if scheduler:
         sched = torch.optim.lr_scheduler.OneCycleLR(optimizer, 0.01, epochs=OPT.EPOCHS, steps_per_epoch=len(train_loader))
 
@@ -107,7 +88,8 @@ def train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer, tag,
             y = y.to(OPT.DEVICE)
 
             # Forward data to model and compute loss
-            y_hat = model(x).to(torch.float32)
+            y_hat = check_output(model(x))['y_hat']
+            y_hat = y_hat.to(torch.float32)
             y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
             loss_train = loss_fn(y_hat, y_onehot)
 
@@ -126,7 +108,7 @@ def train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer, tag,
             seen += len(y)
 
         # Print measures
-        log_metrics(train_loader, seen, cumul_loss_train, cumul_acc_train, epoch, 'train', writer, tag)
+        log_metrics(seen, cumul_loss_train, cumul_acc_train, epoch, 'train', writer, tag)
 
         ####################
         #### Validation ####
@@ -143,7 +125,8 @@ def train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer, tag,
                         y = y.to(OPT.DEVICE)
 
                         # Forward to model
-                        y_hat = model(x).to(torch.float32)
+                        y_hat = check_output(model(x))['y_hat']
+                        y_hat = y_hat.to(torch.float32)
                         y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
                         loss_val = loss_fn(y_hat, y_onehot)
 
@@ -153,14 +136,15 @@ def train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer, tag,
                         seen += len(y)
 
                     # Print measures
-                    log_metrics(val_loader, seen, cumul_loss_val, cumul_acc_val, epoch, 'val', writer, tag)
+                    log_metrics(seen, cumul_loss_val, cumul_acc_val, epoch, 'val', writer, tag)
 
         # Save the model
-        if (epoch % OPT.CHK_EVERY) == 0:
+        if ((epoch % OPT.CHK_EVERY) == 0) and OPT.CHK:
             torch.save(model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}.pt')
 
 
 def test(model, loss_fn, test_loader):
+    model.to(OPT.DEVICE)
 
     with torch.no_grad():
         cumul_loss = 0
@@ -174,7 +158,10 @@ def test(model, loss_fn, test_loader):
             y = y.to(OPT.DEVICE)
 
             # Forward to model
-            y_hat = model(x).to(torch.float32)
+            y_hat = check_output(model(x))['y_hat']
+            y_hat = y_hat.to(torch.float32)
+
+
             y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
             loss_val = loss_fn(y_hat, y_onehot)
 
@@ -191,27 +178,16 @@ def test(model, loss_fn, test_loader):
         cumul_acc /= seen
         print(f'        acc_test:{cumul_acc:.5f}')
 
+    return cumul_loss, cumul_acc
 
 
-def train_all_dset(train_cifar_data):
-    # Model definition
-    model_1 =  timm.create_model(OPT.MODEL, pretrained=False, num_classes=OPT.NUM_CLASSES)
-    model_1.to(OPT.DEVICE)
+def check_output(out):
+    """ Evil hack to check the output """
+    out_dict = {}
+    if type(out) == tuple:
+        out_dict['y_hat'], out_dict['fts'] = out[0], out[1]
+    else:
+        out_dict['y_hat'] = out
+    return out_dict
 
-    # Define loss function and optimizer
-    optimizer = optim.Adam(model_1.parameters(), lr=OPT.LR, weight_decay=OPT.WD)
-    loss_fn = nn.BCEWithLogitsLoss()
-
-    # Split train val
-    cifar_len = len(train_cifar_data)
-    train_split = int(cifar_len * 0.9)
-    train_sbs = torch.utils.data.Subset(train_cifar_data, range(train_split))
-    val_sbs = torch.utils.data.Subset(train_cifar_data, range(train_split, cifar_len))
-    train_loader = torch.utils.data.DataLoader(train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=True)
-    val_loader = torch.utils.data.DataLoader(val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=True)
-
-    # Train
-    writer = SummaryWriter()
-    utils.train_loop(optimizer, model_1, loss_fn, train_loader, val_loader, writer, 'wrm')
-    writer.close()
 

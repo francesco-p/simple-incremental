@@ -1,3 +1,4 @@
+from cProfile import label
 import matplotlib.pyplot as plt
 import torch
 import torchvision
@@ -9,6 +10,8 @@ from torchvision.utils import make_grid
 from torch import optim
 import torch.nn as nn
 import timm
+from strategies.less_forg import LessForg
+from strategies.surgicalft import SurgicalFT
 import utils
 from torch.utils.data import Subset
 import torch.nn.functional as F
@@ -16,97 +19,99 @@ import numpy as np
 import random
 from torch.utils.tensorboard import SummaryWriter
 from opt import OPT
-
-utils.set_seeds()
-
-train_tfms = transforms.Compose([transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-                         transforms.RandomHorizontalFlip(),
-                         transforms.ToTensor(),
-                         transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])])
-
-# Prepare datasets and tasks
-train_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=True, download=True, transform=train_tfms)
+import copy
+import matplotlib.pyplot as plt
+from strategies.finetuning import Finetuning
+from strategies.ema import Ema
+from models.resnet32 import resnet32
+import dset
 
 
 
-##############################
-### PREPARE DATASET SPLITS ###
-##############################
+def main():
+   
 
-first_half, second_half, tasks = utils.prepare_tasks(train_cifar_data, 10)
+    if OPT.LOG:
+        writer = SummaryWriter()
+    else:
+        writer = None
 
-##################
-### first half ###
-##################
+    #############################
+    #### DATASET PREPARATION ####
+    #############################
+    train_data = dset.get_dset_data(OPT.DATASET, OPT.DATA_FOLDER, train=True)
+    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks = dset.prepare_tasks(train_data, OPT.NUM_TASKS)
 
-# Model definition
-model_fh =  timm.create_model(OPT.MODEL, pretrained=False, num_classes=OPT.NUM_CLASSES)
-model_fh.to(OPT.DEVICE)
+    test_data = dset.get_dset_data(OPT.DATASET, OPT.DATA_FOLDER, train=False)
+    _, small_test_loader = dset.split_train_val(test_data)
 
-# Define loss function and optimizer
-optimizer = optim.Adam(model_1.parameters(), lr=OPT.LR, weight_decay=OPT.WD)
-loss_fn = nn.BCEWithLogitsLoss()
+    loss_fn = nn.CrossEntropyLoss()
 
-# Prepare half of CIFAR as warmup
-fh_train_loader, fh_val_loader = first_half
-
-# Train
-writer = SummaryWriter()
-utils.train_loop(optimizer, model_fh, loss_fn, fh_train_loader, fh_val_loader, writer, 'fh')
-writer.close()
-
-##################
-### secnd half ###
-##################
-
-# Model definition
-model_sh =  timm.create_model(OPT.MODEL, pretrained=False, num_classes=OPT.NUM_CLASSES)
-model_sh.to(OPT.DEVICE)
-
-# Define loss function and optimizer
-optimizer = optim.Adam(model_sh.parameters(), lr=OPT.LR, weight_decay=OPT.WD)
-loss_fn = nn.BCEWithLogitsLoss()
-
-sh_train_loader, sh_val_loader = second_half
-
-# Train
-writer = SummaryWriter()
-utils.train_loop(optimizer, model_sh, loss_fn, sh_train_loader, sh_val_loader, writer, 'sh')
-writer.close()
+    ##############################
+    #### TRAIN ON ALL DATASET ####
+    ##############################
+    if OPT.TRAIN_ALL:
+        model_all = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
+        optimizer = optim.Adam(model_all.parameters(), lr=OPT.LR, weight_decay=OPT.WD)
+        train_loader, val_loader = dset.split_train_val(train_data)
+        utils.train_loop(optimizer, model_all, loss_fn, train_loader, val_loader, writer, 'all', scheduler=True)
 
 
-##################
-#### CONTINUAL ###
-##################
+    #######################
+    #### FIRST / SECOND ###
+    #######################
+    if OPT.LOAD_FISRT_SECOND_HALF_MODELS:
+        model_fh, model_sh = utils.load_models(OPT.MODEL, OPT.NUM_CLASSES)
 
-# Model definition
-#model_1 =  timm.create_model(OPT.MODEL, pretrained=False, num_classes=OPT.NUM_CLASSES)
-#model_1.to(OPT.DEVICE)
+    else:
+        print("FIRST HALF")
+        model_fh = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
+        optimizer = optim.Adam(model_fh.parameters(), lr=OPT.LR, weight_decay=OPT.WD)
+        utils.train_loop(optimizer, model_fh, loss_fn, fh_train_loader, fh_val_loader, writer, 'fh')
 
-# Define loss function and optimizer
-optimizer = optim.Adam(model_1.parameters(), lr=OPT.LR)
-loss_fn = nn.BCEWithLogitsLoss()
+        print("SECOND HALF")
+        model_sh = copy.deepcopy(model_fh)
+        optimizer = optim.Adam(model_sh.parameters(), lr=OPT.CONTINUAL_LR, weight_decay=OPT.CONTINUAL_WD)
+        utils.train_loop(optimizer, model_sh, loss_fn, sh_train_loader, sh_val_loader, writer, 'sh')
 
-model_fh.load_state_dict(torch.load('/home/francesco/Documents/single_task/chk/half_1/0040.pt'))
+    ##################
+    #### CONTINUAL ###
+    ##################
 
-for t, (tr, val) in enumerate(tasks):
+    model_c = copy.deepcopy(model_fh)
 
-    writer = SummaryWriter()
-    utils.train_loop(optimizer, model_fh, loss_fn, tr, val, writer, f't{t}')
-    writer.close()
+    print("CONTINUAL")
+    c_a = []
+    approach = SurgicalFT(model_c, layer=1)
+    for t, (tr, val) in enumerate(tasks):
+        print(f"---{t}---")
+        approach.train(tr, val, writer, f't{t}')
+        loss, acc = utils.test(model_c, approach.loss_fn, sh_val_loader)
+        c_a.append((loss, acc))
+
+    # print("m_a @ val2:")
+    # all_l, all_a = utils.test(model_all, loss_fn, sh_val_loader) 
+    print("m1 @ val2:")
+    fh_l, fh_a = utils.test(model_fh, loss_fn, sh_val_loader)
+    print("m2 @ val2:")
+    sh_l, sh_a = utils.test(model_sh, loss_fn, sh_val_loader)
+
+    #utils.plot(fh_a, sh_a, c_a, approach.name)
+    with open(f"values_layer2.csv","a") as f:
+        values = [OPT.SEED] + [x for y,x in c_a]
+        row = ",".join(str(x) for x in values)
+        f.write(row + "\n")
+
+    ### TEST 
+    #
+    #utils.test(model_1, loss_fn, test_loader)
+
+    if OPT.LOG:
+        writer.close()
 
 
-
-utils.test(model_fh, loss_fn, sh_val_loader) # p1: should be the worst
-utils.test(model_sh, loss_fn, sh_val_loader) # p2: should be the best
-utils.test(model_c, loss_fn, sh_val_loader) # pc: p1<pc<p2
-
-
-
-##############
-#### TEST ####
-##############
-#test_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=False, download=True, transform=train_tfms)
-#test_loader = DataLoader(test_cifar_data, batch_size=OPT.BATCH_SIZE, drop_last=False)
-#
-#utils.test(model_1, loss_fn, test_loader)
+if __name__ == "__main__":
+    for s in range(10):
+        OPT.SEED = s
+        utils.set_seeds(OPT.SEED)
+        main()
