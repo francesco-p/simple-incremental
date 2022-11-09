@@ -7,58 +7,106 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
 from torch import optim
-import torch.nn as nn 
+import torch.nn as nn
 import timm
-from utils import get_indices, OPT, train_loop
+import utils
 from torch.utils.data import Subset
 import torch.nn.functional as F
 import numpy as np
 import random
 from torch.utils.tensorboard import SummaryWriter
+from opt import OPT
+
+utils.set_seeds()
+
+train_tfms = transforms.Compose([transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
+                         transforms.RandomHorizontalFlip(),
+                         transforms.ToTensor(),
+                         transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])])
+
+# Prepare datasets and tasks
+train_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=True, download=True, transform=train_tfms)
 
 
-# Set seeds
-torch.manual_seed(OPT.SEED)
-random.seed(OPT.SEED)
-np.random.seed(OPT.SEED)
 
-trans = transforms.Compose([
-    transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-    transforms.RandomHorizontalFlip(), 
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-])
+##############################
+### PREPARE DATASET SPLITS ###
+##############################
 
-train_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=True, download=False, transform=trans)
-test_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=False, download=False, transform=trans)
-len(train_cifar_data), len(test_cifar_data)
+first_half, second_half, tasks = utils.prepare_tasks(train_cifar_data, 10)
 
-
-# Extract example indices of two classes
-d12_idx = get_indices(train_cifar_data, 0, 1)
-
-# Split indices in D1 and D2 
-d1_idx = d12_idx[:5000]
-d2_idx = d12_idx[5000:]
-
-# Creates D1,D2 train and validation
-d1_tr, d1_val = Subset(train_cifar_data, d1_idx[:4500]), Subset(train_cifar_data, d1_idx[4500:])
-d2_tr, d2_val = Subset(train_cifar_data, d2_idx[:4500]), Subset(train_cifar_data, d2_idx[4500:])
-
+##################
+### first half ###
+##################
 
 # Model definition
-model =  timm.create_model(OPT.MODEL, pretrained=False, num_classes=OPT.NUM_CLASSES)
-model.to(OPT.NUM_CLASSES)
-model.train()
+model_fh =  timm.create_model(OPT.MODEL, pretrained=False, num_classes=OPT.NUM_CLASSES)
+model_fh.to(OPT.DEVICE)
 
 # Define loss function and optimizer
-optimizer = optim.Adam(model.parameters(), lr=OPT.LR)
+optimizer = optim.Adam(model_1.parameters(), lr=OPT.LR, weight_decay=OPT.WD)
 loss_fn = nn.BCEWithLogitsLoss()
 
-# Train loop
-train_loader = DataLoader(d1_tr, batch_size=OPT.TRAINING_BATCH_SIZE, drop_last=False)
-val_loader = DataLoader(d1_val, batch_size=OPT.VAL_BATCH_SIZE, drop_last=False)
+# Prepare half of CIFAR as warmup
+fh_train_loader, fh_val_loader = first_half
 
+# Train
 writer = SummaryWriter()
-train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer)
+utils.train_loop(optimizer, model_fh, loss_fn, fh_train_loader, fh_val_loader, writer, 'fh')
 writer.close()
+
+##################
+### secnd half ###
+##################
+
+# Model definition
+model_sh =  timm.create_model(OPT.MODEL, pretrained=False, num_classes=OPT.NUM_CLASSES)
+model_sh.to(OPT.DEVICE)
+
+# Define loss function and optimizer
+optimizer = optim.Adam(model_sh.parameters(), lr=OPT.LR, weight_decay=OPT.WD)
+loss_fn = nn.BCEWithLogitsLoss()
+
+sh_train_loader, sh_val_loader = second_half
+
+# Train
+writer = SummaryWriter()
+utils.train_loop(optimizer, model_sh, loss_fn, sh_train_loader, sh_val_loader, writer, 'sh')
+writer.close()
+
+
+##################
+#### CONTINUAL ###
+##################
+
+# Model definition
+#model_1 =  timm.create_model(OPT.MODEL, pretrained=False, num_classes=OPT.NUM_CLASSES)
+#model_1.to(OPT.DEVICE)
+
+# Define loss function and optimizer
+optimizer = optim.Adam(model_1.parameters(), lr=OPT.LR)
+loss_fn = nn.BCEWithLogitsLoss()
+
+model_fh.load_state_dict(torch.load('/home/francesco/Documents/single_task/chk/half_1/0040.pt'))
+
+for t, (tr, val) in enumerate(tasks):
+
+    writer = SummaryWriter()
+    utils.train_loop(optimizer, model_fh, loss_fn, tr, val, writer, f't{t}')
+    writer.close()
+
+
+
+utils.test(model_fh, loss_fn, sh_val_loader) # p1: should be the worst
+utils.test(model_sh, loss_fn, sh_val_loader) # p2: should be the best
+utils.test(model_c, loss_fn, sh_val_loader) # pc: p1<pc<p2
+
+
+
+##############
+#### TEST ####
+##############
+#test_cifar_data = datasets.CIFAR10(OPT.DATA_FOLDER, train=False, download=True, transform=train_tfms)
+#test_loader = DataLoader(test_cifar_data, batch_size=OPT.BATCH_SIZE, drop_last=False)
+#
+#utils.test(model_1, loss_fn, test_loader)
