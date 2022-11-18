@@ -13,13 +13,21 @@ TRANSFOMATIONS = {
     "CIFAR100": trs.Compose([trs.RandomCrop(32, padding=4, padding_mode='reflect'),
                 trs.RandomHorizontalFlip(),
                 trs.ToTensor(),
-                trs.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])])
+                trs.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])]),
+
+    "SVHN": trs.Compose([trs.RandomHorizontalFlip(),
+                trs.ToTensor()])
 }
 
 
 def get_dset_data(dataset, data_folder, train):
     if dataset == 'CIFAR10':
         data = datasets.CIFAR10(data_folder, train=train, download=True, transform=TRANSFOMATIONS[dataset])
+    elif dataset == 'CIFAR100':
+        data = datasets.CIFAR100(data_folder, train=train, download=True, transform=TRANSFOMATIONS[dataset])
+    elif dataset == 'SVHN':
+        split = 'train' if train else 'test'
+        data = datasets.SVHN(data_folder, split=split, download=True, transform=TRANSFOMATIONS[dataset])
     else:
         raise NotImplementedError
 

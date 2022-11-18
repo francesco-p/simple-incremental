@@ -29,10 +29,10 @@ def plot(bottom_line, top_line, continual, approach_name):
 def load_models(model_name, num_classes):
 
     model_fh =  get_model(model_name, num_classes, pretrained=False)
-    model_fh.load_state_dict(torch.load(f'/home/francesco/Documents/single_task/chk/fh_0029.pt'))
+    model_fh.load_state_dict(torch.load(f'{OPT.CHK_FOLDER}/fh_0014.pt'))
 
     model_sh =  get_model(model_name, num_classes, pretrained=False)
-    model_sh.load_state_dict(torch.load(f'/home/francesco/Documents/single_task/chk/sh_0029.pt'))
+    model_sh.load_state_dict(torch.load(f'{OPT.CHK_FOLDER}/sh_0014.pt'))
 
     return model_fh, model_sh
 

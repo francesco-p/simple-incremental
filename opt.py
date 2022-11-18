@@ -1,19 +1,26 @@
+
+DSET_CLASSES = {
+        'CIFAR100':100,
+        'CIFAR10':10,
+        'SVHN':10
+    }
+
 # Params
 class OPT:
 
     SEED = 42
 
     # Datset parameters
-    DATASET = 'CIFAR10'
+    DATASET = 'CIFAR100'
     DATA_FOLDER = '~/data'
     NUM_TASKS = 6
-    NUM_CLASSES = 10
+    NUM_CLASSES = DSET_CLASSES[DATASET]
 
     # Model parameters
     PRETRAINED = False
     BATCH_SIZE = 256
     MODEL = 'resnet18'
-    DEVICE = 'cuda'
+    DEVICE = 'cuda:1'
 
     # Train also on all dataet?
     TRAIN_ALL = False
@@ -32,10 +39,14 @@ class OPT:
     LOAD_FISRT_SECOND_HALF_MODELS = True
 
     # Model checkpointing
-    CHK_FOLDER = '/home/francesco/Documents/single_task/chk'
+    CHK_FOLDER = '/home/leonardolabs/Documents/simple-incremental/chk'
     CHK_EVERY = 1
     CHK = True
 
     # Tensorboard logging
-    LOG = True
+    LOG = False
     LOG_EVERY = 1
+
+
+    # SURGICAL LAYER
+    SURGICAL_LAYER = 2

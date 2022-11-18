@@ -29,7 +29,7 @@ import dset
 
 
 def main():
-   
+
 
     if OPT.LOG:
         writer = SummaryWriter()
@@ -82,14 +82,14 @@ def main():
 
     print("CONTINUAL")
     c_a = []
-    approach = SurgicalFT(model_c, layer=1)
+    approach = SurgicalFT(model_c, layer=3)
     for t, (tr, val) in enumerate(tasks):
-        print(f"---{t}---")
-        approach.train(tr, val, writer, f't{t}')
-        loss, acc = utils.test(model_c, approach.loss_fn, sh_val_loader)
-        c_a.append((loss, acc))
+       print(f"---{t}---")
+       approach.train(tr, val, writer, f't{t}')
+       loss, acc = utils.test(model_c, approach.loss_fn, sh_val_loader)
+       c_a.append((loss, acc))
 
-    # print("m_a @ val2:")
+    # print("m total @ val2:")
     # all_l, all_a = utils.test(model_all, loss_fn, sh_val_loader) 
     print("m1 @ val2:")
     fh_l, fh_a = utils.test(model_fh, loss_fn, sh_val_loader)
@@ -97,10 +97,11 @@ def main():
     sh_l, sh_a = utils.test(model_sh, loss_fn, sh_val_loader)
 
     #utils.plot(fh_a, sh_a, c_a, approach.name)
-    with open(f"values_layer2.csv","a") as f:
-        values = [OPT.SEED] + [x for y,x in c_a]
-        row = ",".join(str(x) for x in values)
-        f.write(row + "\n")
+    with open(f"{OPT.DATASET}_layer{OPT.SURGICAL_LAYER}.csv","a") as f:
+       values = [OPT.SEED] + [x for y,x in c_a] + [fh_a, sh_a]
+       row = ",".join(str(x) for x in values)
+       f.write(row + "\n")
+
 
     ### TEST 
     #
@@ -113,5 +114,7 @@ def main():
 if __name__ == "__main__":
     for s in range(10):
         OPT.SEED = s
+        if s >0:
+            OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
         utils.set_seeds(OPT.SEED)
         main()
