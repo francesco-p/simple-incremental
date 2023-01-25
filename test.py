@@ -1,3 +1,4 @@
+"""
 import torch
 import torch.nn as nn
 
@@ -9,10 +10,6 @@ bkb_fc = nn.Linear(3,10)
 
 fr = nn.Linear(3,3)
 fr_fc = nn.Linear(3,10)
-
-
-
-
 
 _x1 = bkb(x)
 
@@ -29,3 +26,24 @@ loss = (loss1 + loss2).sum()
 loss.backward()
 
 print('hi')
+"""
+
+import timm
+
+def model_size(model):
+    """ Prints model info """
+    params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    mb = (params * 32) / 2**23
+    gb = (params * 32) / 2**33
+    #print(f"Params: {params} MB: {mb:.2f} GB:{gb:.2f} [- 32bit]")
+    return params
+
+models = timm.list_models()
+
+p = []
+for m in models:
+    model = timm.create_model(m, pretrained=False)
+    p.append(model_size(model))
+
+    print(m, p[-1])
+import ipdb; ipdb.set_trace()

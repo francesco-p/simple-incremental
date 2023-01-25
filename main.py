@@ -10,8 +10,6 @@ from torchvision.utils import make_grid
 from torch import optim
 import torch.nn as nn
 import timm
-from strategies.less_forg import LessForg
-from strategies.surgicalft import SurgicalFT
 import utils
 from torch.utils.data import Subset
 import torch.nn.functional as F
@@ -23,6 +21,11 @@ import copy
 import matplotlib.pyplot as plt
 from strategies.finetuning import Finetuning
 from strategies.ema import Ema
+from strategies.less_forg import LessForg
+from strategies.surgicalft import SurgicalFT
+from strategies.finetuningFC import FinetuningFC
+from strategies.ojkd import OJKD
+
 from models.resnet32 import resnet32
 import dset
 
@@ -47,6 +50,8 @@ def main():
 
     loss_fn = nn.CrossEntropyLoss()
 
+
+
     ##############################
     #### TRAIN ON ALL DATASET ####
     ##############################
@@ -66,12 +71,12 @@ def main():
     else:
         print("FIRST HALF")
         model_fh = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
-        optimizer = optim.Adam(model_fh.parameters(), lr=OPT.LR, weight_decay=OPT.WD)
+        optimizer = optim.AdamW(model_fh.parameters(), lr=OPT.LR, weight_decay=OPT.WD)
         utils.train_loop(optimizer, model_fh, loss_fn, fh_train_loader, fh_val_loader, writer, 'fh')
 
         print("SECOND HALF")
         model_sh = copy.deepcopy(model_fh)
-        optimizer = optim.Adam(model_sh.parameters(), lr=OPT.CONTINUAL_LR, weight_decay=OPT.CONTINUAL_WD)
+        optimizer = optim.AdamW(model_sh.parameters(), lr=OPT.CONTINUAL_LR, weight_decay=OPT.CONTINUAL_WD)
         utils.train_loop(optimizer, model_sh, loss_fn, sh_train_loader, sh_val_loader, writer, 'sh')
 
     ##################
@@ -82,7 +87,13 @@ def main():
 
     print("CONTINUAL")
     c_a = []
-    approach = SurgicalFT(model_c, layer=3)
+
+    
+
+    approach = SurgicalFT(model_c, layer=2)
+    #approach = OJKD(model_c)
+    #approach = Finetuning(model_c)
+    #approach = FinetuningFC(model_c)
     for t, (tr, val) in enumerate(tasks):
        print(f"---{t}---")
        approach.train(tr, val, writer, f't{t}')
@@ -97,7 +108,7 @@ def main():
     sh_l, sh_a = utils.test(model_sh, loss_fn, sh_val_loader)
 
     #utils.plot(fh_a, sh_a, c_a, approach.name)
-    with open(f"{OPT.DATASET}_layer{OPT.SURGICAL_LAYER}.csv","a") as f:
+    with open(f"{OPT.DATASET}_surgical2.csv","a") as f:
        values = [OPT.SEED] + [x for y,x in c_a] + [fh_a, sh_a]
        row = ",".join(str(x) for x in values)
        f.write(row + "\n")
@@ -112,7 +123,7 @@ def main():
 
 
 if __name__ == "__main__":
-    for s in range(10):
+    for s in range(5):
         OPT.SEED = s
         if s >0:
             OPT.LOAD_FISRT_SECOND_HALF_MODELS = True

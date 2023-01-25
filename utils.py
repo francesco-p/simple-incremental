@@ -41,6 +41,10 @@ def get_model(model_name, num_classes, pretrained):
 
     if model_name == 'resnet18':
         model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
+    if model_name == 'dla46x_c':
+        model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
+    if model_name == 'mobilenetv2_035':
+        model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
     elif model_name == 'resnet32':
         model = resnet32(num_classes=num_classes, pretrained=pretrained)
     else:
@@ -71,7 +75,8 @@ def log_metrics(seen, loss, acc, epoch, session, writer, tag):
 def train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer, tag, scheduler=False):
     model.to(OPT.DEVICE)
     if scheduler:
-        sched = torch.optim.lr_scheduler.OneCycleLR(optimizer, 0.01, epochs=OPT.EPOCHS, steps_per_epoch=len(train_loader))
+        #sched = torch.optim.lr_scheduler.OneCycleLR(optimizer, 0.01, epochs=OPT.EPOCHS, steps_per_epoch=len(train_loader))
+        sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
     for epoch in range(0, OPT.EPOCHS):
         print(f'    EPOCH {epoch} ')
@@ -99,8 +104,8 @@ def train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer, tag,
             optimizer.zero_grad()
 
             # Record & update learning rate
-            if scheduler:
-                sched.step()
+            #if scheduler:
+            #    sched.step()
 
             # Compute measures
             cumul_loss_train += loss_train.item()
@@ -137,6 +142,9 @@ def train_loop(optimizer, model, loss_fn, train_loader, val_loader, writer, tag,
 
                     # Print measures
                     log_metrics(seen, cumul_loss_val, cumul_acc_val, epoch, 'val', writer, tag)
+
+        if scheduler:
+            sched.step(cumul_loss_val/seen)
 
         # Save the model
         if ((epoch % OPT.CHK_EVERY) == 0) and OPT.CHK:
@@ -185,9 +193,15 @@ def check_output(out):
     """ Evil hack to check the output """
     out_dict = {}
     if type(out) == tuple:
-        out_dict['y_hat'], out_dict['fts'] = out[0], out[1]
+        if out[0].shape == out[1].shape: #accomodates ojkd
+            out_dict['bkb'] = out[0]
+            out_dict['fr'] = out[1]
+        else:
+            out_dict['y_hat'], out_dict['fts'] = out[0], out[1]
     else:
         out_dict['y_hat'] = out
     return out_dict
+
+
 
 

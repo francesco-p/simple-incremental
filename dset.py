@@ -38,8 +38,8 @@ def split_train_val(data, split=0.9):
     train_split = int(len(data) * split)
     train_sbs = torch.utils.data.Subset(data, range(train_split))
     val_sbs = torch.utils.data.Subset(data, range(train_split, len(data)))
-    train_loader = torch.utils.data.DataLoader(train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False)
-    val_loader = torch.utils.data.DataLoader(val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False)
+    train_loader = torch.utils.data.DataLoader(train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
+    val_loader = torch.utils.data.DataLoader(val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
     return train_loader, val_loader
 
 
@@ -62,8 +62,8 @@ def prepare_tasks(data, num_tasks):
     # Prepare loaders for wrmp
     wrmp_train_sbs = torch.utils.data.Subset(data, wrmp_train_indices)
     wrmp_val_sbs = torch.utils.data.Subset(data, wrmp_val_indices)
-    wrmp_train_loader = torch.utils.data.DataLoader(wrmp_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False)
-    wrmp_val_loader = torch.utils.data.DataLoader(wrmp_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False)
+    wrmp_train_loader = torch.utils.data.DataLoader(wrmp_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
+    wrmp_val_loader = torch.utils.data.DataLoader(wrmp_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
     wrmp_task = (wrmp_train_loader, wrmp_val_loader)
 
     ### 2. Select half dataset
@@ -77,8 +77,8 @@ def prepare_tasks(data, num_tasks):
     # Prepare loaders for wrmp
     n_wrmp_train_sbs = torch.utils.data.Subset(data, n_wrmp_train_indices)
     n_wrmp_val_sbs = torch.utils.data.Subset(data, n_wrmp_val_indices)
-    n_wrmp_train_loader = torch.utils.data.DataLoader(n_wrmp_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False)
-    n_wrmp_val_loader = torch.utils.data.DataLoader(n_wrmp_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False)
+    n_wrmp_train_loader = torch.utils.data.DataLoader(n_wrmp_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
+    n_wrmp_val_loader = torch.utils.data.DataLoader(n_wrmp_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
     n_wrmp_task = (n_wrmp_train_loader, n_wrmp_val_loader)
 
     ### 3. Calculate a subtask split length
@@ -95,8 +95,8 @@ def prepare_tasks(data, num_tasks):
         # Prepare loaders for each task
         task_train_sbs = torch.utils.data.Subset(data, c_tr_indices)
         task_val_sbs = torch.utils.data.Subset(data, c_val_indices)
-        task_train_loader = torch.utils.data.DataLoader(task_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False)
-        task_val_loader = torch.utils.data.DataLoader(task_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False)
+        task_train_loader = torch.utils.data.DataLoader(task_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
+        task_val_loader = torch.utils.data.DataLoader(task_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
         tasks.append((task_train_loader, task_val_loader))
 
     return (wrmp_task, n_wrmp_task, tasks)

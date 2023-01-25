@@ -1,22 +1,25 @@
-from importlib.util import LazyLoader
-from pandas import set_option
 from opt import OPT
 import torch
-import copy
+from utils import log_metrics
 import torch.nn.functional as F
-from torch import optim
 import torch.nn as nn
 import utils
+from torch import optim
 
-class SurgicalFT():
-    """ https://arxiv.org/pdf/2210.11466.pdf """
 
-    def __init__(self, model, layer) -> None:
-        self.layer = layer
+class FinetuningFC():
+
+    def __init__(self, model) -> None:
         self.model = model
-        self.optimizer = self._set_optim(layer)
+        for p in model.parameters():
+            p.requires_grad=False
+        
+        for p in model.fc.parameters():
+            p.requires_grad=True
+        
+        self.optimizer = optim.Adam(self.model.fc.parameters(), lr=OPT.CONTINUAL_LR, weight_decay=OPT.CONTINUAL_WD)
         self.loss_fn = nn.CrossEntropyLoss()
-        self.name = f"Surgical FT@layer{layer}"
+        self.name = "FinetuningFC"
 
     def train(self, train_loader, val_loader, writer, tag, scheduler=False):
         self.model.to(OPT.DEVICE)
@@ -42,11 +45,7 @@ class SurgicalFT():
                 y_hat = utils.check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
                 y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
-
-                # Losses
-                l_c = self.loss_fn(y_hat, y_onehot)
-
-                loss_train = l_c
+                loss_train = self.loss_fn(y_hat, y_onehot)
 
                 # Backward
                 loss_train.backward()
@@ -58,12 +57,12 @@ class SurgicalFT():
                     sched.step()
 
                 # Compute measures
-                cumul_loss_train += l_c.item()
+                cumul_loss_train += loss_train.item()
                 cumul_acc_train += (y_hat.argmax(dim=1) == y).sum().item()
                 seen += len(y)
 
             # Print measures
-            self.log_metrics(seen, cumul_loss_train, cumul_acc_train, epoch, 'train', writer, tag)
+            log_metrics(seen, cumul_loss_train, cumul_acc_train, epoch, 'train', writer, tag)
 
             ####################
             #### Validation ####
@@ -83,47 +82,16 @@ class SurgicalFT():
                             y_hat = utils.check_output(self.model(x))['y_hat']
                             y_hat = y_hat.to(torch.float32)
                             y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
-
-                            l_c = self.loss_fn(y_hat, y_onehot)
-                            loss_train = l_c
+                            loss_val = self.loss_fn(y_hat, y_onehot)
 
                             # Compute measures
-                            cumul_loss_val += l_c.item()
+                            cumul_loss_val += loss_val.item()
                             cumul_acc_val += (y_hat.argmax(dim=1) == y).sum().item()
                             seen += len(y)
 
                         # Print measures
-                        self.log_metrics(seen, cumul_loss_val, cumul_acc_val, epoch, 'val', writer, tag)
+                        log_metrics(seen, cumul_loss_val, cumul_acc_val, epoch, 'val', writer, tag)
 
             # Save the model
             if ((epoch % OPT.CHK_EVERY) == 0) and OPT.CHK:
                 torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}_{OPT.MODEL}.pt')
-
-
-    def log_metrics(self, seen, loss, acc, epoch, session, writer, tag):
-        """ Prints metrics to screen and logs to tensorboard """
-        loss /= seen
-        acc /= seen
-        print(f'        {session:<6} - l_c:{loss:.5f} a:{acc:.5f}')
-
-        if OPT.LOG:
-            writer.add_scalar(f'{tag}/loss_c/{session}', loss, epoch)
-            writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
-
-
-    def _set_optim(self, layer):
-
-        if layer == 0:
-            tr_params = [{"params": self.model.conv1.parameters()}]
-        elif layer == 1:
-            tr_params = [{"params": self.model.layer1.parameters()}]
-        elif layer == 2:
-            tr_params = [{"params": self.model.layer2.parameters()}]
-        elif layer == 3:
-            tr_params = [{"params": self.model.layer3.parameters()}]
-        elif layer == 4:
-            tr_params = [{"params": self.model.fc.parameters()}]
-
-        optimizer = optim.Adam(tr_params,lr=OPT.CONTINUAL_LR, weight_decay=OPT.CONTINUAL_WD)
-
-        return optimizer

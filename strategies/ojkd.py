@@ -10,22 +10,23 @@ import utils
 
 
 class ResNet18_FR(nn.Module):
-    def __init__(self, model) -> None:
-        super(ResNet18_FR).__init__()
-        
+    def __init__(self, model, emb_size=128) -> None:
+        super(ResNet18_FR, self).__init__()
+        self.emb_size = emb_size
+
         self.backbone = nn.Sequential(*(list(model.children())[:-1]))
         self.backbone_fc = model.fc
-        
-        self.refiner = nn.Sequential([
-            nn.Linear(512, 64),
-            nn.LayerNorm(64),
-            nn.Linear(64,64),
-            nn.ReLU(),
-            nn.Linear(64,64),
-            nn.LayerNorm(64)])
 
-        self.refiner_fc = nn.Linear(512, OPT.NUM_CLASSES)
-        
+        self.refiner = nn.Sequential(
+            nn.Linear(512, emb_size),
+            nn.LayerNorm(emb_size),
+            nn.Linear(emb_size, emb_size),
+            nn.ReLU(),
+            nn.Linear(emb_size, emb_size),
+            nn.LayerNorm(emb_size))
+
+        self.refiner_fc = nn.Linear(emb_size, OPT.NUM_CLASSES)
+
 
     def forward(self, x):
 
@@ -71,14 +72,19 @@ class OJKD():
                 y = y.to(OPT.DEVICE)
 
                 # Forward data to model and compute loss
-                y_hat = utils.check_output(self.model(x))['y_hat']
+                out_dict = utils.check_output(self.model(x))
+                y_hat, y_fr = out_dict['bkb'], out_dict['fr']
+
                 y_hat = y_hat.to(torch.float32)
+                y_fr = y_fr.to(torch.float32)
+
                 y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
 
                 # Losses
-                l_c = self.loss_fn(y_hat, y_onehot)
+                l_bkb = self.loss_fn(y_hat, y_onehot)
+                l_fr = self.loss_fn(y_fr, y_onehot)
 
-                loss_train = l_c
+                loss_train = l_bkb + l_fr
 
                 # Backward
                 loss_train.backward()
@@ -90,7 +96,7 @@ class OJKD():
                     sched.step()
 
                 # Compute measures
-                cumul_loss_train += l_c.item()
+                cumul_loss_train += loss_train.item()
                 cumul_acc_train += (y_hat.argmax(dim=1) == y).sum().item()
                 seen += len(y)
 
@@ -111,16 +117,23 @@ class OJKD():
                             x = x.to(OPT.DEVICE)
                             y = y.to(OPT.DEVICE)
 
-                            # Forward to model
-                            y_hat = utils.check_output(self.model(x))['y_hat']
+                            # Forward data to model and compute loss
+                            out_dict = utils.check_output(self.model(x))
+                            y_hat, y_fr = out_dict['bkb'], out_dict['fr']
+
                             y_hat = y_hat.to(torch.float32)
+                            y_fr = y_fr.to(torch.float32)
+
                             y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
 
-                            l_c = self.loss_fn(y_hat, y_onehot)
-                            loss_train = l_c
+                            # Losses
+                            l_bkb = self.loss_fn(y_hat, y_onehot)
+                            l_fr = self.loss_fn(y_fr, y_onehot)
+
+                            loss_val = l_bkb + l_fr
 
                             # Compute measures
-                            cumul_loss_val += l_c.item()
+                            cumul_loss_val += loss_val.item()
                             cumul_acc_val += (y_hat.argmax(dim=1) == y).sum().item()
                             seen += len(y)
 
@@ -136,26 +149,9 @@ class OJKD():
         """ Prints metrics to screen and logs to tensorboard """
         loss /= seen
         acc /= seen
-        print(f'        {session:<6} - l_c:{loss:.5f} a:{acc:.5f}')
+        print(f'        {session:<6} - l:{loss:.5f} a:{acc:.5f}')
 
         if OPT.LOG:
             writer.add_scalar(f'{tag}/loss_c/{session}', loss, epoch)
             writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
 
-
-    def _set_optim(self, layer):
-
-        if layer == 0:
-            tr_params = [{"params": self.model.conv1.parameters()}]
-        elif layer == 1:
-            tr_params = [{"params": self.model.layer1.parameters()}]
-        elif layer == 2:
-            tr_params = [{"params": self.model.layer2.parameters()}]
-        elif layer == 3:
-            tr_params = [{"params": self.model.layer3.parameters()}]
-        elif layer == 4:
-            tr_params = [{"params": self.model.fc.parameters()}]
-
-        optimizer = optim.Adam(tr_params,lr=OPT.CONTINUAL_LR, weight_decay=OPT.CONTINUAL_WD)
-
-        return optimizer

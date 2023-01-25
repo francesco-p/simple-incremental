@@ -88,4 +88,4 @@ class Finetuning():
 
             # Save the model
             if ((epoch % OPT.CHK_EVERY) == 0) and OPT.CHK:
-                torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}.pt')
+                torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}_{OPT.MODEL}.pt')
