@@ -49,6 +49,7 @@ class Trainer:
 
     def eval(self, loader, loss_fn):
         """Evaluate the model on a dataset."""
+        self.model.to(self.device)
         with torch.no_grad():
             cumul_loss_eval = 0
             cumul_acc_eval = 0
