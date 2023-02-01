@@ -4,7 +4,7 @@
 | **Approach** | **Paper Link**                                                                                         | **Implemented** |   |   |
 |--------------|--------------------------------------------------------------------------------------------------------|-----------------|---|---|
 | Finetuning   |                                                                                                        | ✅               |   |   |
-| FinetuningFC |                                                                                                        | ❌               |   |   |
+| FinetuningFC |                                                                                                        | ✅               |   |   |
 | LessForg     | [ Paper ]( https://arxiv.org/pdf/1607.00122.pdf )                                                      | ❌               |   |   |
 | OJKD         | [ Paper ]( https://arxiv.org/pdf/2210.05657.pdf )                                                      | ❌               |   |   |
 | SurgicalFT   | [ Paper ]( https://arxiv.org/pdf/2210.11466.pdf )                                                      | ❌               |   |   |
