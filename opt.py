@@ -6,9 +6,10 @@ import os
 class OPT:
 
     # Folders
-    CSV_FOLDER = '/home/francesco/Documents/single_task/csv/'
-    DATA_FOLDER = '/home/francesco/data/'
-    CHK_FOLDER = '/home/francesco/Documents/single_task/chk/'
+    HOME_FOLDER = "/home/leonardolabs/Documents/simple_incremental"
+    CSV_FOLDER = f'{HOME_FOLDER}/csv/'
+    DATA_FOLDER = f'{HOME_FOLDER}/../../data/'
+    CHK_FOLDER = f'{HOME_FOLDER}/chk/'
     
     if not os.path.exists(CHK_FOLDER):
         os.mkdir(CHK_FOLDER)
@@ -62,6 +63,9 @@ class OPT:
 
     EVAL_EVERY_CONT = 1
     #####################################
+
+    #######CDD#######
+    CDD_ITERATIONS = 1000
 
 
     

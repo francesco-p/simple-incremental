@@ -22,7 +22,7 @@ def convert_to_task_dataset(task_loader):
     return TaskDataset(task_loader.dataset, task_loader.dataset.indices)
 
 
-def get_dset_data(dataset, train, data_folder=OPT.DATA_FOLDER):
+def get_dset_data(dataset, data_folder=OPT.DATA_FOLDER, train = True):
     """ Return a dataset object """
 
     if dataset == 'CIFAR10':
@@ -94,6 +94,7 @@ def prepare_tasks(data, num_tasks, bsize, workers=8):
 
     # Construct continual tasks
     tasks = []
+    subsets = []
     for t in range(num_tasks):
         # Selects subindices
         c_tr_indices = n_wrmp_train_indices[(tr_task_len * t):(tr_task_len * t)+tr_task_len]
@@ -102,11 +103,13 @@ def prepare_tasks(data, num_tasks, bsize, workers=8):
         # Prepare loaders for each task
         task_train_sbs = Subset(data, c_tr_indices)
         task_val_sbs = Subset(data, c_val_indices)
+        
         task_train_loader = DataLoader(task_train_sbs, batch_size=bsize,shuffle=False, num_workers=workers)
         task_val_loader = DataLoader(task_val_sbs, batch_size=bsize,shuffle=False, num_workers=workers)
         tasks.append((task_train_loader, task_val_loader))
+        subsets.append((task_train_sbs, task_val_sbs))
 
-    return (wrmp_task, n_wrmp_task, tasks)
+    return (wrmp_task, n_wrmp_task, tasks, subsets)
 
 
 
