@@ -91,13 +91,13 @@ def main(n_run, seed):
         model_fh = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
         optimizer = optim.AdamW(model_fh.parameters(), lr=OPT.LR_FH, weight_decay=OPT.WD_FH)
         fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_fh')
-        fh.train_eval(optimizer, loss_fn, OPT.EPOCHS_FH, fh_train_loader, fh_val_loader)
+        #fh.train_eval(optimizer, loss_fn, OPT.EPOCHS_FH, fh_train_loader, fh_val_loader)
 
         print("SECOND HALF")
         model_sh = copy.deepcopy(model_fh)
         optimizer = optim.AdamW(model_sh.parameters(), lr=OPT.LR_SH, weight_decay=OPT.WD_SH)
         sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_sh')
-        sh.train_eval(optimizer, loss_fn, OPT.EPOCHS_SH, sh_train_loader, sh_val_loader)
+        #sh.train_eval(optimizer, loss_fn, OPT.EPOCHS_SH, sh_train_loader, sh_val_loader)
 
     print("###########################################")
     print("############## CONTINUAL STEP #############")
@@ -132,7 +132,7 @@ def main(n_run, seed):
     data = [seed] + [a for l, a in continual_metrics] + [fh_acc, sh_acc]
     row = ",".join(str(value) for value in data)
 
-    fname = os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{OPT.METHOD_CONT}_{OPT.MODEL.replace('_','')}.csv")
+    fname = os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{strategy.name.replace('_','')}_{OPT.MODEL.replace('_','')}.csv")
     utils.write_line_to_csv(row, fname, append)
 
     if OPT.TENSORBOARD:
