@@ -86,6 +86,8 @@ def get_model(model_name, num_classes, pretrained):
     elif model_name == 'mobilenetv2_035':
         model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
     elif model_name == 'resnet32':
+        if pretrained:
+            raise NotImplementedError('Pretrained resnet32 is not implemented')
         model = resnet32(num_classes=num_classes, pretrained=pretrained)
     else:
         raise NotImplementedError(f"Unknown model {model_name}")

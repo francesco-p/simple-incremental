@@ -56,10 +56,10 @@ def main(n_run, seed):
 
     print("###########################################")
     print("########### DATASET PREPARATION ###########")
-    train_data = dset.get_dset_data(OPT.DATASET, OPT.DATA_FOLDER, train=True)
-    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks = dset.prepare_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
+    train_data = dset.get_dset_data(OPT.DATASET, train=True)
+    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = dset.prepare_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
 
-    test_data = dset.get_dset_data(OPT.DATASET, OPT.DATA_FOLDER, train=False)
+    test_data = dset.get_dset_data(OPT.DATASET, train=False)
     _, small_test_loader = dset.split_train_val(test_data, OPT.BATCH_SIZE)
 
     loss_fn = nn.CrossEntropyLoss()
@@ -145,8 +145,10 @@ if __name__ == "__main__":
     for n, seed in enumerate(OPT.SEEDS):
         if n > 0:
             OPT.ALL = False
-            OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
+            OPT.LOAD_FISRT_SECOND_HALF_MODELS = False
         else:
+            print('>>>>>>>>>>>>>>Load models ALWAYS disabled<>>>><<<<<<<<<<<<') 
+            #OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
             OPT.LOAD_FISRT_SECOND_HALF_MODELS = False
 
         main(n, seed)
