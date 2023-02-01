@@ -1,15 +1,14 @@
+from abc import ABC, abstractmethod
 
-class Base():
+class Base(ABC):
 
     def __init__(self):
         pass
 
+    @abstractmethod
     def train(self):
         pass
-
-    def _set_optim(self):
+    
+    @abstractmethod
+    def eval(self):
         pass
-
-    def log_metrics(self):
-        pass
-

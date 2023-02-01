@@ -17,7 +17,7 @@ class LessForg():
         self.beta = 0.001
         self.original_implementation = original_impl
         self.optimizer = self._set_optim(original_impl)
-        self.name = "Less Forg"
+        self.name = "LessForg"
         self.loss_fn = nn.CrossEntropyLoss()
 
 
@@ -166,3 +166,4 @@ class LessForg():
             weight_decay=OPT.CONTINUAL_WD
             )
         return optimizer
+

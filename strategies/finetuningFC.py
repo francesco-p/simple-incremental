@@ -1,6 +1,5 @@
 from opt import OPT
 import torch
-from utils import log_metrics
 import torch.nn.functional as F
 import torch.nn as nn
 import utils
@@ -62,7 +61,7 @@ class FinetuningFC():
                 seen += len(y)
 
             # Print measures
-            log_metrics(seen, cumul_loss_train, cumul_acc_train, epoch, 'train', writer, tag)
+            self.log_metrics(seen, cumul_loss_train, cumul_acc_train, epoch, 'train', writer, tag)
 
             ####################
             #### Validation ####
@@ -90,8 +89,18 @@ class FinetuningFC():
                             seen += len(y)
 
                         # Print measures
-                        log_metrics(seen, cumul_loss_val, cumul_acc_val, epoch, 'val', writer, tag)
+                        self.log_metrics(seen, cumul_loss_val, cumul_acc_val, epoch, 'val', writer, tag)
 
             # Save the model
             if ((epoch % OPT.CHK_EVERY) == 0) and OPT.CHK:
                 torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}_{OPT.MODEL}.pt')
+
+    def log_metrics(seen, loss, acc, epoch, session, writer, tag):
+        """ Prints metrics to screen and logs to tensorboard """
+        loss /= seen
+        acc /= seen
+        print(f'        {session:<6} - l:{loss:.5f}  a:{acc:.5f}')
+
+        if OPT.LOG:
+            writer.add_scalar(f'{tag}/loss/{session}', loss, epoch)
+            writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)

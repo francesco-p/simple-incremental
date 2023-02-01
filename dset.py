@@ -1,50 +1,40 @@
 from opt import OPT
 import torch
-from torchvision import datasets
-from torchvision import transforms as trs
-
-TRANSFOMATIONS = {
-
-    "CIFAR10": trs.Compose([trs.RandomCrop(32, padding=4, padding_mode='reflect'),
-                trs.RandomHorizontalFlip(),
-                trs.ToTensor(),
-                trs.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])]),
-
-    "CIFAR100": trs.Compose([trs.RandomCrop(32, padding=4, padding_mode='reflect'),
-                trs.RandomHorizontalFlip(),
-                trs.ToTensor(),
-                trs.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])]),
-
-    "SVHN": trs.Compose([trs.RandomHorizontalFlip(),
-                trs.ToTensor()])
-}
+from torchvision.datasets import CIFAR10, CIFAR100, SVHN
+from torch.utils.data import DataLoader, Subset
+from stats import DSET_TRANSF
 
 
 def get_dset_data(dataset, data_folder, train):
+    """ Return a dataset object """
+
     if dataset == 'CIFAR10':
-        data = datasets.CIFAR10(data_folder, train=train, download=True, transform=TRANSFOMATIONS[dataset])
+        data = CIFAR10(data_folder, train=train, download=True, transform=DSET_TRANSF[dataset])
     elif dataset == 'CIFAR100':
-        data = datasets.CIFAR100(data_folder, train=train, download=True, transform=TRANSFOMATIONS[dataset])
+        data = CIFAR100(data_folder, train=train, download=True, transform=DSET_TRANSF[dataset])
     elif dataset == 'SVHN':
         split = 'train' if train else 'test'
-        data = datasets.SVHN(data_folder, split=split, download=True, transform=TRANSFOMATIONS[dataset])
+        data = SVHN(data_folder, split=split, download=True, transform=DSET_TRANSF[dataset])
     else:
         raise NotImplementedError
 
     return data
 
 
-def split_train_val(data, split=0.9):
+def split_train_val(data, bsize, workers=8, split=0.9):
+    """ Split a dataset in train and val. It returns a train and val tuple"""
+    
     train_split = int(len(data) * split)
-    train_sbs = torch.utils.data.Subset(data, range(train_split))
-    val_sbs = torch.utils.data.Subset(data, range(train_split, len(data)))
-    train_loader = torch.utils.data.DataLoader(train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
-    val_loader = torch.utils.data.DataLoader(val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
+    train_sbs = Subset(data, range(train_split))
+    val_sbs = Subset(data, range(train_split, len(data)))
+    train_loader = DataLoader(train_sbs, batch_size=bsize, shuffle=False, num_workers=workers)
+    val_loader = DataLoader(val_sbs, batch_size=bsize, shuffle=False, num_workers=workers)
+
     return train_loader, val_loader
 
 
 # [TODO] to fix the split quantity in OPT
-def prepare_tasks(data, num_tasks):
+def prepare_tasks(data, num_tasks, bsize, workers=8):
     """ Split a dataset in a warmup task + a sequence of tasks. It selects half
     of the dataset to be used as a warmup dataset and then returns a number of
     continual tasks. Each task (both warmup and continual) are a train, val tuple
@@ -60,10 +50,10 @@ def prepare_tasks(data, num_tasks):
     wrmp_val_indices =  even_indices[wrmp_split:]
 
     # Prepare loaders for wrmp
-    wrmp_train_sbs = torch.utils.data.Subset(data, wrmp_train_indices)
-    wrmp_val_sbs = torch.utils.data.Subset(data, wrmp_val_indices)
-    wrmp_train_loader = torch.utils.data.DataLoader(wrmp_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
-    wrmp_val_loader = torch.utils.data.DataLoader(wrmp_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
+    wrmp_train_sbs = Subset(data, wrmp_train_indices)
+    wrmp_val_sbs = Subset(data, wrmp_val_indices)
+    wrmp_train_loader = DataLoader(wrmp_train_sbs, batch_size=bsize,shuffle=False, num_workers=workers)
+    wrmp_val_loader = DataLoader(wrmp_val_sbs, batch_size=bsize,shuffle=False, num_workers=workers)
     wrmp_task = (wrmp_train_loader, wrmp_val_loader)
 
     ### 2. Select half dataset
@@ -75,10 +65,10 @@ def prepare_tasks(data, num_tasks):
     n_wrmp_val_indices =  odd_indices[n_wrmp_split:]
 
     # Prepare loaders for wrmp
-    n_wrmp_train_sbs = torch.utils.data.Subset(data, n_wrmp_train_indices)
-    n_wrmp_val_sbs = torch.utils.data.Subset(data, n_wrmp_val_indices)
-    n_wrmp_train_loader = torch.utils.data.DataLoader(n_wrmp_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
-    n_wrmp_val_loader = torch.utils.data.DataLoader(n_wrmp_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
+    n_wrmp_train_sbs = Subset(data, n_wrmp_train_indices)
+    n_wrmp_val_sbs = Subset(data, n_wrmp_val_indices)
+    n_wrmp_train_loader = DataLoader(n_wrmp_train_sbs, batch_size=bsize,shuffle=False, num_workers=workers)
+    n_wrmp_val_loader = DataLoader(n_wrmp_val_sbs, batch_size=bsize,shuffle=False, num_workers=workers)
     n_wrmp_task = (n_wrmp_train_loader, n_wrmp_val_loader)
 
     ### 3. Calculate a subtask split length
@@ -93,10 +83,52 @@ def prepare_tasks(data, num_tasks):
         c_val_indices = n_wrmp_val_indices[(val_task_len * t):(val_task_len * t)+val_task_len]
 
         # Prepare loaders for each task
-        task_train_sbs = torch.utils.data.Subset(data, c_tr_indices)
-        task_val_sbs = torch.utils.data.Subset(data, c_val_indices)
-        task_train_loader = torch.utils.data.DataLoader(task_train_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
-        task_val_loader = torch.utils.data.DataLoader(task_val_sbs, batch_size=OPT.BATCH_SIZE,shuffle=False, num_workers=8)
+        task_train_sbs = Subset(data, c_tr_indices)
+        task_val_sbs = Subset(data, c_val_indices)
+        task_train_loader = DataLoader(task_train_sbs, batch_size=bsize,shuffle=False, num_workers=workers)
+        task_val_loader = DataLoader(task_val_sbs, batch_size=bsize,shuffle=False, num_workers=workers)
         tasks.append((task_train_loader, task_val_loader))
 
     return (wrmp_task, n_wrmp_task, tasks)
+
+
+
+if __name__ == "__main__":
+
+    # Prepare data
+    data = get_dset_data('CIFAR10', OPT.DATA_FOLDER, train=True)
+    train_loader, val_loader = split_train_val(data, bsize=1)
+    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks = prepare_tasks(data, num_tasks=10, bsize=1)
+
+    # Print some info
+    print('Train loader len: {}'.format(len(train_loader)))
+    print('Val loader len: {}'.format(len(val_loader)))
+    print('First half train loader len: {}'.format(len(fh_train_loader)))
+    print('First half val loader len: {}'.format(len(fh_val_loader)))
+    print('Second half train loader len: {}'.format(len(sh_train_loader)))
+    print('Second half val loader len: {}'.format(len(sh_val_loader)))
+    print('Tasks len: {}'.format(len(tasks)))
+    print('Task 0 train loader len: {}'.format(len(tasks[0][0])))
+    print('Task 0 val loader len: {}'.format(len(tasks[0][1])))
+    print('Task 1 train loader len: {}'.format(len(tasks[1][0])))
+    print('Task 1 val loader len: {}'.format(len(tasks[1][1])))
+    
+    # Prints the first 5 indices for each task (should be different)
+    for t in range(len(tasks)):
+        print('Task {} train indices: {}'.format(t, tasks[t][0].dataset.indices[:5]))
+        print('Task {} val indices: {}'.format(t, tasks[t][1].dataset.indices[:5]))
+
+    # Asserts the indices are correct (no overlap)
+    assert len(set(fh_train_loader.dataset.indices).intersection(sh_train_loader.dataset.indices)) == 0
+
+    # asserts the indices for each task are correct (no overlap)
+    for t in range(len(tasks)):
+        for t2 in range(len(tasks)):
+            if t != t2:
+                assert len(set(tasks[t][0].dataset.indices).intersection(tasks[t2][0].dataset.indices)) == 0
+                assert len(set(tasks[t][1].dataset.indices).intersection(tasks[t2][1].dataset.indices)) == 0
+    
+
+
+
+    
