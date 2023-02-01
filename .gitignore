@@ -1,3 +1,6 @@
 __pycache__/
 runs/
 chk/
+.ipynb_checkpoints/
+*.csv
+TODO
