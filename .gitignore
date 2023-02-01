@@ -4,3 +4,4 @@ chk/
 .ipynb_checkpoints/
 *.csv
 TODO
+chunks/
