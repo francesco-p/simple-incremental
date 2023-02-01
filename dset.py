@@ -1,11 +1,28 @@
 from opt import OPT
 import torch
 from torchvision.datasets import CIFAR10, CIFAR100, SVHN
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, Dataset
 from stats import DSET_TRANSF
 
+class TaskDataset(Dataset):
+    """ Dataset for a task. It is a subset of a dataset. """
+    def __init__(self, dataset, indices):
+        self.dataset = dataset
+        self.indices = indices
 
-def get_dset_data(dataset, data_folder, train):
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        return self.dataset[self.indices[idx]]
+
+
+def convert_to_task_dataset(task_loader):
+
+    return TaskDataset(task_loader.dataset, task_loader.dataset.indices)
+
+
+def get_dset_data(dataset, train, data_folder=OPT.DATA_FOLDER):
     """ Return a dataset object """
 
     if dataset == 'CIFAR10':
