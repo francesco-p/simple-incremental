@@ -6,10 +6,11 @@ import copy
 import torch.nn.functional as F
 from torch import optim
 import torch.nn as nn
-import utils
+from utils import check_output
 
 
 class ResNet18_FR(nn.Module):
+    """ Feature Refiner for ResNet18 """
     def __init__(self, model, emb_size=128) -> None:
         super(ResNet18_FR, self).__init__()
         self.emb_size = emb_size
@@ -29,6 +30,10 @@ class ResNet18_FR(nn.Module):
 
 
     def forward(self, x):
+        """ 
+        x: input image
+        returns: backbone prediction, refiner prediction
+        """
 
         _x1 = self.backbone(x)
         _x2 = _x1.clone()
@@ -41,12 +46,13 @@ class ResNet18_FR(nn.Module):
 
 class OJKD():
     """ https://arxiv.org/pdf/2210.05657.pdf
-    assumes resnet18
+
+    This method only with ResNet18 for now
     """
 
     def __init__(self, model) -> None:
         self.model = ResNet18_FR(model)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.CONTINUAL_LR, weight_decay=OPT.CONTINUAL_WD)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
         self.loss_fn = nn.CrossEntropyLoss()
         self.name = "OJKD"
 
@@ -55,9 +61,9 @@ class OJKD():
         self.model.to(OPT.DEVICE)
 
         if scheduler:
-            sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.CONTINUAL_EPOCHS, steps_per_epoch=len(train_loader))
+            sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.EPOCHS_CONT, steps_per_epoch=len(train_loader))
 
-        for epoch in range(0, OPT.CONTINUAL_EPOCHS):
+        for epoch in range(0, OPT.EPOCHS_CONT):
             print(f'    EPOCH {epoch} ')
 
             ##################
@@ -72,7 +78,7 @@ class OJKD():
                 y = y.to(OPT.DEVICE)
 
                 # Forward data to model and compute loss
-                out_dict = utils.check_output(self.model(x))
+                out_dict = check_output(self.model(x))
                 y_hat, y_fr = out_dict['bkb'], out_dict['fr']
 
                 y_hat = y_hat.to(torch.float32)
@@ -101,57 +107,62 @@ class OJKD():
                 seen += len(y)
 
             # Print measures
-            self.log_metrics(seen, cumul_loss_train, cumul_acc_train, epoch, 'train', writer, tag)
+            cumul_loss_train /= seen
+            cumul_acc_train /= seen
+            self.log_metrics(cumul_loss_train, cumul_acc_train, epoch, 'train', writer, tag)
 
             ####################
             #### Validation ####
-            if (epoch == 0) or ((epoch % OPT.LOG_EVERY) == 0):
-                    with torch.no_grad():
-                        cumul_loss_val = 0
-                        cumul_acc_val = 0
-                        seen = 0
-                        self.model.eval()
-                        for x, y in val_loader:
-
-                            # Move to GPU
-                            x = x.to(OPT.DEVICE)
-                            y = y.to(OPT.DEVICE)
-
-                            # Forward data to model and compute loss
-                            out_dict = utils.check_output(self.model(x))
-                            y_hat, y_fr = out_dict['bkb'], out_dict['fr']
-
-                            y_hat = y_hat.to(torch.float32)
-                            y_fr = y_fr.to(torch.float32)
-
-                            y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
-
-                            # Losses
-                            l_bkb = self.loss_fn(y_hat, y_onehot)
-                            l_fr = self.loss_fn(y_fr, y_onehot)
-
-                            loss_val = l_bkb + l_fr
-
-                            # Compute measures
-                            cumul_loss_val += loss_val.item()
-                            cumul_acc_val += (y_hat.argmax(dim=1) == y).sum().item()
-                            seen += len(y)
-
-                        # Print measures
-                        self.log_metrics(seen, cumul_loss_val, cumul_acc_val, epoch, 'val', writer, tag)
-
-            # Save the model
-            if ((epoch % OPT.CHK_EVERY) == 0) and OPT.CHK:
-                torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}.pt')
+            if (epoch == 0) or ((epoch % OPT.EVAL_EVERY_CONT) == 0):
+                eval_loss, eval_acc = self.eval(val_loader, writer, tag)
+                #torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}_{OPT.MODEL}.pt')
 
 
-    def log_metrics(self, seen, loss, acc, epoch, session, writer, tag):
+    def eval(self, test_loader, writer, tag):
+        self.model.to(OPT.DEVICE)
+        self.model.eval()
+        with torch.no_grad():
+            cumul_loss_test = 0
+            cumul_acc_test = 0
+            seen = 0
+            for x, y in test_loader:
+                # Move to GPU
+                x = x.to(OPT.DEVICE)
+                y = y.to(OPT.DEVICE)
+
+                # Forward data to model and compute loss
+                out_dict = check_output(self.model(x))
+                y_hat, y_fr = out_dict['bkb'], out_dict['fr']
+
+                y_hat = y_hat.to(torch.float32)
+                y_fr = y_fr.to(torch.float32)
+
+                y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+
+                # Losses
+                l_bkb = self.loss_fn(y_hat, y_onehot)
+                l_fr = self.loss_fn(y_fr, y_onehot)
+
+                loss_test = l_bkb + l_fr
+
+                # Compute measures
+                cumul_loss_test += loss_test.item()
+                cumul_acc_test += (y_hat.argmax(dim=1) == y).sum().item()
+                seen += len(y)
+
+            cumul_acc_test /= seen
+            cumul_loss_test /= seen
+            # Print measures (we do not print the feature refiner metrics)
+            self.log_metrics(cumul_loss_test, cumul_acc_test, 0, 'test', writer, tag)
+
+        return cumul_loss_test, cumul_acc_test
+        
+
+    def log_metrics(self, loss, acc, epoch, session, writer, tag):
         """ Prints metrics to screen and logs to tensorboard """
-        loss /= seen
-        acc /= seen
-        print(f'        {session:<6} - l:{loss:.5f} a:{acc:.5f}')
+        print(f'        {session:<6} - loss:{loss:.5f} acc:{acc:.5f}')
 
-        if OPT.LOG:
-            writer.add_scalar(f'{tag}/loss_c/{session}', loss, epoch)
+        if OPT.TENSORBOARD:
+            writer.add_scalar(f'{tag}/loss/{session}', loss, epoch)
             writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
 

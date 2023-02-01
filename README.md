@@ -6,7 +6,7 @@
 | Finetuning   |                                                                                                        | ✅               |   |   |
 | FinetuningFC |                                                                                                        | ✅               |   |   |
 | LessForg     | [ Paper ]( https://arxiv.org/pdf/1607.00122.pdf )                                                      | ❌               |   |   |
-| OJKD         | [ Paper ]( https://arxiv.org/pdf/2210.05657.pdf )                                                      | ❌               |   |   |
+| OJKD         | [ Paper ]( https://arxiv.org/pdf/2210.05657.pdf )                                                      | ✅               |   |   |
 | SurgicalFT   | [ Paper ]( https://arxiv.org/pdf/2210.11466.pdf )                                                      | ✅               |   |   |
 | Ema          |                                                                                                        | ❌               |   |   |
 | iCarl        | [ Paper ]( https://arxiv.org/pdf/1611.07725.pdf )                                                      | ❌               |   |   |
