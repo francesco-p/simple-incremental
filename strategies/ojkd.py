@@ -1,13 +1,10 @@
-from importlib.util import LazyLoader
-from pandas import set_option
 from opt import OPT
 import torch
-import copy
 import torch.nn.functional as F
 from torch import optim
 import torch.nn as nn
 from utils import check_output
-
+from strategies.base import Base
 
 class ResNet18_FR(nn.Module):
     """ Feature Refiner for ResNet18 """
@@ -44,7 +41,7 @@ class ResNet18_FR(nn.Module):
         return backbone_pred, refiner_pred
 
 
-class OJKD():
+class OJKD(Base):
     """ https://arxiv.org/pdf/2210.05657.pdf
 
     This method only with ResNet18 for now
@@ -156,7 +153,7 @@ class OJKD():
             self.log_metrics(cumul_loss_test, cumul_acc_test, 0, 'test', writer, tag)
 
         return cumul_loss_test, cumul_acc_test
-        
+
 
     def log_metrics(self, loss, acc, epoch, session, writer, tag):
         """ Prints metrics to screen and logs to tensorboard """
