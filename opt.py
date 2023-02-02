@@ -18,7 +18,7 @@ class OPT:
         os.mkdir(CSV_FOLDER)
 
     # Set multiple seeds for multiple runs
-    SEEDS = [69,1337]
+    SEEDS = [69] #[69,1337]
 
     # Datset parameters
     DATASET = 'CIFAR100'
