@@ -6,7 +6,7 @@ import utils
 from torch import optim
 from strategies.base import Base
 
-class Finetuning(Base):
+class CDD(Base):
 
     def __init__(self, model) -> None:
         super().__init__()

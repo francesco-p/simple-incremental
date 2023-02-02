@@ -6,3 +6,6 @@ chk/
 TODO
 chunks/
 CDD/features_final
+CDD/results
+CDD/pretrained_ae
+*.py~

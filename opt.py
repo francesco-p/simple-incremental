@@ -65,7 +65,7 @@ class OPT:
     #####################################
 
     #######CDD#######
-    CDD_ITERATIONS = 1000
+    CDD_ITERATIONS = 2000
 
 
     

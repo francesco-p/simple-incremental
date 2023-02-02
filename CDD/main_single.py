@@ -16,7 +16,7 @@ from generator import SyntheticImageGenerator
 
 def main(args, dset):
     args.device = torch.device(f"cuda:{args.gpu_id}")
-    args.ae_path = f'CDD/pretrained_ae/{args.dataset}_{args.ipc}_default.pth'
+    args.ae_path = f'CDD/pretrained_ae/{args.dataset}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_default.pth'
 
     if args.exp_name is None:
         args.exp_name = f'{args.model}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}'
@@ -49,18 +49,6 @@ def main(args, dset):
     ''' save path '''
     save_path = f'{args.save_path}/{args.dataset}/{args.exp_name}/task{args.name_folder}'
     os.makedirs(save_path, exist_ok=True)
-    ''' logger '''
-    # logger = Logger(
-    #     exp_name=args.exp_name,
-    #     save_dir=save_path,
-    #     print_every=args.print_every,
-    #     save_every=args.buffer_every,
-    #     total_step=args.iteration,
-    #     print_to_stdout=True,
-    #     wandb_project_name=f'test1',
-    #     wandb_tags=[],
-    #     wandb_config=args,
-    # )
 
     ''' initialize '''
     generator = SyntheticImageGenerator(
@@ -81,10 +69,6 @@ def main(args, dset):
     
     del generator.encoders
     generator.broadcast_decoder()
-
-    # logger.register_model_to_save(generator, "generator")
-    # logger.register_model_to_save(optimizer_gen, "optimizer_gen")
-    # logger.start()
 
     buffer = []
     for it in range(1, args.iteration+1):
@@ -139,7 +123,7 @@ def main(args, dset):
         scheduler_gen.step()
         loss_avg = loss.item() / num_classes  
 
-        #logger.meter("loss", "train", loss_avg)
+
 
         ''' Evaluate synthetic data '''
         if it % args.eval_every == 0:
@@ -160,14 +144,12 @@ def main(args, dset):
                     if it == args.iteration: # record the final results
                         accs_all_exps[model_eval] += accs
 
-                    #logger.meter("accuracy", model_eval, np.mean(accs))
 
                     print('Evaluate %d random %s, mean = %.4f std = %.4f\n-------------------------'%(len(accs), model_eval, np.mean(accs), np.std(accs)))
 
             ''' visualize and save '''
             save_name = os.path.join(save_path, f'{it}.png')
             grid = make_grid(image_syn, nrow=args.num_seed_vec*args.num_decoder)
-            #wandb.log({"images": wandb.Image(grid.detach().cpu())}, step=it)
             save_image(image_syn, save_name, nrow=args.num_seed_vec*args.num_decoder)
 
         if it == args.iteration: # only record the final results
@@ -175,12 +157,8 @@ def main(args, dset):
             image_syn, label_syn = image_syn.detach(), label_syn.detach()
 
             data_save.append([image_syn, label_syn])
-            torch.save({'data': data_save, 'accs_all_exps': accs_all_exps, }, os.path.join(save_path, f'res.pth'))
+            torch.save({'data': data_save, 'generator': generator, 'accs_all_exps': accs_all_exps, }, os.path.join(save_path, f'res.pth'))
 
-        
-        #logger.step()
-
-    #logger.finish()
 
     print('\n==================== Final Results ====================\n')
     for key in args.model_eval_pool:
