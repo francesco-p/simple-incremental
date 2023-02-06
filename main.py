@@ -94,13 +94,13 @@ def main(n_run, seed):
         model_fh = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
         optimizer = optim.AdamW(model_fh.parameters(), lr=OPT.LR_FH, weight_decay=OPT.WD_FH)
         fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_fh')
-        #fh.train_eval(optimizer, loss_fn, OPT.EPOCHS_FH, fh_train_loader, fh_val_loader)
+        fh.train_eval(optimizer, loss_fn, OPT.EPOCHS_FH, fh_train_loader, fh_val_loader)
 
         print("SECOND HALF")
         model_sh = copy.deepcopy(model_fh)
         optimizer = optim.AdamW(model_sh.parameters(), lr=OPT.LR_SH, weight_decay=OPT.WD_SH)
         sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_sh')
-        #sh.train_eval(optimizer, loss_fn, OPT.EPOCHS_SH, sh_train_loader, sh_val_loader)
+        sh.train_eval(optimizer, loss_fn, OPT.EPOCHS_SH, sh_train_loader, sh_val_loader)
 
     print("###########################################")
     print("############## CONTINUAL STEP #############")
@@ -118,7 +118,8 @@ def main(n_run, seed):
        strategy.train(task_train_loader, task_val_loader, writer, tag)
        sh_loss, sh_acc = strategy.eval(sh_val_loader, writer, 'sh')
        continual_metrics.append((sh_loss, sh_acc))
-
+           
+       
     
     # Print accuracies
     

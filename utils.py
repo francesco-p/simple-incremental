@@ -42,7 +42,7 @@ def plot_csv(csv_file):
     ax.set_title(f'Performance on {dataset} dataset - model {model}')
     ax.legend()
     plt.show()
-
+    plt.savefig("plot.png")
 
 def load_models(model, dataset, num_classes, epoch, device=OPT.DEVICE, chk_folder=OPT.CHK_FOLDER):
     """ Load models from checkpoint of a given epoch 
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     assert out_dict['y_hat'].shape == (10, 10)
 
     # create fake csv file for testing
-    csv_file = 'csv/AWESOMEDSET_10tasks_Finetuning_resnet18.csv'
+    csv_file = 'csv/CIFAR100_10tasks_CDD_dla46xc.csv'
     data = f'1000,'+','.join([str(random.random()) for _ in range(10)])+',0.5,0.6'
     write_line_to_csv(data, csv_file, append=False)
         
