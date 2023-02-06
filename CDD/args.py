@@ -30,8 +30,8 @@ def make_args(task_id):
     parser.add_argument('--lr_ae', type=float, default=1e-2)
     parser.add_argument('--ipc', type=int, default=1)
     parser.add_argument('--hdims', type=list, default=[6,9,12])
-    parser.add_argument('--num_seed_vec', type=int, default=13)
-    parser.add_argument('--num_decoder', type=int, default=20)
+    parser.add_argument('--num_seed_vec', type=int, default=10)
+    parser.add_argument('--num_decoder', type=int, default=10)
 
     # Adds custom params
     parser.add_argument('--stride', type=int, default=2)

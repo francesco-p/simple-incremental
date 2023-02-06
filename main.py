@@ -41,6 +41,8 @@ def MethodFactory(method, **kwargs):
         return st.FinetuningFC(**kwargs)
     elif method == 'OJKD':
         return st.OJKD(**kwargs)
+    elif method == 'CDD':
+        return st.CDD(**kwargs)
     else:
         raise NotImplementedError(f"Unknown method {method}")
 
@@ -57,7 +59,7 @@ def main(n_run, seed):
     print("###########################################")
     print("########### DATASET PREPARATION ###########")
     train_data = dset.get_dset_data(OPT.DATASET, OPT.DATA_FOLDER, train=True)
-    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks = dset.prepare_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
+    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, _ = dset.prepare_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
 
     test_data = dset.get_dset_data(OPT.DATASET, OPT.DATA_FOLDER, train=False)
     _, small_test_loader = dset.split_train_val(test_data, OPT.BATCH_SIZE)

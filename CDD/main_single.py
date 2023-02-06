@@ -157,7 +157,8 @@ def main(args, dset):
             image_syn, label_syn = image_syn.detach(), label_syn.detach()
 
             data_save.append([image_syn, label_syn])
-            torch.save({'data': data_save, 'generator': generator, 'accs_all_exps': accs_all_exps, }, os.path.join(save_path, f'res.pth'))
+            torch.save({'data': data_save, 'accs_all_exps': accs_all_exps, }, os.path.join(save_path, f'res.pth'))
+            torch.save(generator, os.path.join(save_path, f'generator.pth'))
 
 
     print('\n==================== Final Results ====================\n')

@@ -52,7 +52,7 @@ class OPT:
     WD_SH = 1e-4
     EPOCHS_SH = 1
     ############ CONT PARAMS ############
-    METHOD_CONT = 'Finetuning'
+    METHOD_CONT = 'CDD'
     # Approach params, if no params, leave empty dict
     #ARGS = {'layer':2}
     ARGS_CONT = {}
@@ -65,7 +65,7 @@ class OPT:
     #####################################
 
     #######CDD#######
-    CDD_ITERATIONS = 2000
+    CDD_ITERATIONS = 1000
 
 
     
