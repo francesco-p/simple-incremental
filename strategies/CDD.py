@@ -24,14 +24,15 @@ class CDD(Base):
             sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.EPOCHS_CONT, steps_per_epoch=len(train_loader))
 
         if int(tag)>0:
-            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_1_20/task_{int(tag) - 1}/")
-            self.buffer_images =  torch.cat(self.buffer_images, syn_images_and_label[0][0], dim = 0)
-            self.buffer_labels =  torch.cat(self.buffer_labels, syn_images_and_label[0][1], dim = 0)
+            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_16_8/task_{int(tag) - 1}/res.pth")
+            self.buffer_images = self.buffer_images.to("cpu")
+            self.buffer_labels = self.buffer_labels.to("cpu")
+            self.buffer_images =  torch.cat((self.buffer_images, syn_images_and_labels["data"][0][0]), dim = 0)
+            self.buffer_labels =  torch.cat((self.buffer_labels, syn_images_and_labels["data"][0][1]), dim = 0).long()
             indices = torch.randperm(self.buffer_labels.shape[0])
             self.buffer_images = self.buffer_images[indices].to(OPT.DEVICE)
             self.buffer_labels = self.buffer_labels[indices].to(OPT.DEVICE)
-
-        self.permuted_indices = torch.randperm(self.buffer_labels.shape[0])
+            self.permuted_indices = torch.randperm(self.buffer_labels.shape[0])
 
         for epoch in range(0, OPT.EPOCHS_CONT):
             print(f'    EPOCH {epoch} ')
@@ -51,10 +52,12 @@ class CDD(Base):
                     idx = i
                     if (idx+1)*OPT.BATCH_SIZE > self.buffer_labels.shape[0]: #try if better to start over or stop buffering
                         idx = 0
-                    buffer_batch_idx = permuted_indices[idx*OPT.BATCH_SIZE : (idx+1)*OPT.BATCH_SIZE]
+                    buffer_batch_idx = self.permuted_indices[idx*OPT.BATCH_SIZE : (idx+1)*OPT.BATCH_SIZE]
 
-                    x = torch.cat(x, self.buffer_images[buffer_batch_idx], dim = 0)
-                    y = torch.cat(y, self.buffer_labels[buffer_batch_idx], dim = 0)
+                    x = torch.cat((x, self.buffer_images[buffer_batch_idx]), dim = 0)
+                    y = torch.cat((y, self.buffer_labels[buffer_batch_idx]), dim = 0)
+                    #print(f"y:{y}")
+                    #print(f"buffer y:{self.buffer_labels[buffer_batch_idx]}")
                 
 
                 # Forward data to model and compute loss
