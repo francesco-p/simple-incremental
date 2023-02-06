@@ -41,6 +41,8 @@ def MethodFactory(method, **kwargs):
         return st.FinetuningFC(**kwargs)
     elif method == 'OJKD':
         return st.OJKD(**kwargs)
+    elif method == 'CDD':
+        return st.CDD(**kwargs)
     else:
         raise NotImplementedError(f"Unknown method {method}")
 
@@ -56,6 +58,7 @@ def main(n_run, seed):
 
     print("###########################################")
     print("########### DATASET PREPARATION ###########")
+
     train_data = dset.get_dset_data(OPT.DATASET, train=True)
     (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = dset.prepare_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
 
@@ -111,7 +114,7 @@ def main(n_run, seed):
     strategy = MethodFactory(OPT.METHOD_CONT, **OPT.ARGS_CONT)
     for task_id, (task_train_loader, task_val_loader) in enumerate(tasks):
        print(f"---Task {task_id}---")
-       tag = f't{task_id}'
+       tag = f'{task_id}'
        strategy.train(task_train_loader, task_val_loader, writer, tag)
        sh_loss, sh_acc = strategy.eval(sh_val_loader, writer, 'sh')
        continual_metrics.append((sh_loss, sh_acc))

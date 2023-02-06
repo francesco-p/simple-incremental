@@ -7,3 +7,4 @@ from .finetuningFC import FinetuningFC
 from .less_forg import LessForg
 from .ojkd import OJKD
 from .surgicalft import SurgicalFT
+from .CDD import CDD

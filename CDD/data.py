@@ -208,10 +208,11 @@ def get_dataset(dataset, data_path, dst_train, load_train=True):
 
     normalize = K.Normalize(mean=mean, std=std)
 
-    #testloader = torch.utils.data.DataLoader(dst_test, batch_size=64, shuffle=False, num_workers=0)
-    testloader = None
-    
-    return channel, im_size, num_classes, normalize, images_all, indices_class, testloader
+    dst_test = dst_train
+    dataloader = torch.utils.data.DataLoader(dst_test, batch_size=64, shuffle=False, num_workers=0)
+
+
+    return channel, im_size, num_classes, normalize, images_all, indices_class, dataloader
 
 
 def get_cl_dataset(class_map, data_path):

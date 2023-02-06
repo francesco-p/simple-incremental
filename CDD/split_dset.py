@@ -13,9 +13,7 @@ import sys
 import os
 current = os.path.dirname(os.path.realpath(__file__))
 parent_directory = os.path.dirname(current)
-  
 sys.path.append(parent_directory)
-  
 
 import utils
 from torch.utils.data import Subset
@@ -30,9 +28,10 @@ from models.resnet32 import resnet32
 import dset
 from trainer import Trainer
 import save_features
-
+import pretrain
 import argparse
-
+import main_single
+from args import make_args
 
 def MethodFactory(method, **kwargs):
     """Factory method for creating a strategy object."""
@@ -66,33 +65,11 @@ def main(n_run, seed):
     loss_fn = nn.CrossEntropyLoss()
   
     for task_id, (task_train_sbs, task_val_sbs) in enumerate(subsets):
-        # dset_folder = f"CDD/splitted_dset/{OPT.DATASET}"
-        # os.makedirs(dset_folder, exist_ok=True)
-      
+        args = make_args(task_id)
         
-        parser = argparse.ArgumentParser(description='Parameter Processing')
-
-        parser.add_argument('--model', type=str, default='ConvNet', help='model')
-        parser.add_argument('--dataset', type=str, default='CIFAR10', help='dataset')
-        parser.add_argument('--data_path', type=str, default='/home/leonardolabs/data', help='dataset path')
-        parser.add_argument('--iteration', type=int, default=20000, help='training iterations')
-        parser.add_argument('--start_iteration', type=int, default=0, help='training iterations')
-        parser.add_argument('--half', action='store_true')
-        parser.add_argument('--batch', type=int, default=-1)
-        parser.add_argument('--gpu_id', type=int, default=0)
-        parser.add_argument('--RP_hid', type=int, default=128)
-        parser.add_argument('--name_folder', type=str, default="")
-        parser.add_argument('--save_folder', type=str, default="CDD/features_final")
-        parser.add_argument('--no_init', action = "store_true")
-
-        args = parser.parse_args()
-        args.dataset = f"{OPT.DATASET}"
-        args.iteration = OPT.CDD_ITERATIONS
-        args.name_folder = f"_{task_id}"
-
-        
-        save_features.main(args, task_train_sbs)
-        
+        #save_features.main(args, task_train_sbs)
+        pretrain.main(args, task_train_sbs)
+        main_single.main(args, task_val_sbs)
         print(f"---{task_id}---")
 
 
