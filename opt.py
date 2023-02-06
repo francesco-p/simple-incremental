@@ -46,11 +46,11 @@ class OPT:
     ############ FH PARAMS ############
     LR_FH = 1e-3
     WD_FH = 1e-4
-    EPOCHS_FH = 1
+    EPOCHS_FH = 4
     ############ SH PARAMS ############
     LR_SH = 1e-3
     WD_SH = 1e-4
-    EPOCHS_SH = 1
+    EPOCHS_SH = 4
     ############ CONT PARAMS ############
     METHOD_CONT = 'CDD'
     # Approach params, if no params, leave empty dict
@@ -59,7 +59,7 @@ class OPT:
 
     LR_CONT = 1e-4
     WD_CONT = 1e-5
-    EPOCHS_CONT = 1
+    EPOCHS_CONT = 5
 
     EVAL_EVERY_CONT = 1
     #####################################
