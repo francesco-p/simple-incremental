@@ -111,7 +111,7 @@ def main(n_run, seed):
     strategy = MethodFactory(OPT.METHOD_CONT, **OPT.ARGS_CONT)
     for task_id, (task_train_loader, task_val_loader) in enumerate(tasks):
        print(f"---Task {task_id}---")
-       tag = f't{task_id}'
+       tag = f'{task_id}'
        strategy.train(task_train_loader, task_val_loader, writer, tag)
        sh_loss, sh_acc = strategy.eval(sh_val_loader, writer, 'sh')
        continual_metrics.append((sh_loss, sh_acc))

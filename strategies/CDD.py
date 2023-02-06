@@ -13,14 +13,25 @@ class CDD(Base):
         self.model = model
         self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
         self.loss_fn = nn.CrossEntropyLoss()
-        self.name = "Finetuning"
-
+        self.name = "CDD"
+        self.buffer_images = torch.tensor([])
+        self.buffer_labels = torch.tensor([])
 
     def train(self, train_loader, val_loader, writer, tag, scheduler=False):
         self.model.to(OPT.DEVICE)
 
         if scheduler:
             sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.EPOCHS_CONT, steps_per_epoch=len(train_loader))
+
+        if int(tag)>0:
+            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_1_20/task_{int(tag) - 1}/")
+            self.buffer_images =  torch.cat(self.buffer_images, syn_images_and_label[0][0], dim = 0)
+            self.buffer_labels =  torch.cat(self.buffer_labels, syn_images_and_label[0][1], dim = 0)
+            indices = torch.randperm(self.buffer_labels.shape[0])
+            self.buffer_images = self.buffer_images[indices].to(OPT.DEVICE)
+            self.buffer_labels = self.buffer_labels[indices].to(OPT.DEVICE)
+
+        self.permuted_indices = torch.randperm(self.buffer_labels.shape[0])
 
         for epoch in range(0, OPT.EPOCHS_CONT):
             print(f'    EPOCH {epoch} ')
@@ -31,10 +42,20 @@ class CDD(Base):
             cumul_acc_train = 0
             seen = 0
             self.model.train()
-            for x, y in train_loader:
+            for i, (x, y) in enumerate(train_loader):
                 # Move to GPU
+                
                 x = x.to(OPT.DEVICE)
                 y = y.to(OPT.DEVICE)
+                
+                idx = i
+                if (idx+1)*OPT.BATCH_SIZE > self.buffer_labels.shape[0]: #try if better to start over or stop buffering
+                    idx = 0
+                buffer_batch_idx = permuted_indices[idx*OPT.BATCH_SIZE : (idx+1)*OPT.BATCH_SIZE]
+                
+                x = torch.cat(x, self.buffer_images[buffer_batch_idx], dim = 0)
+                y = torch.cat(y, self.buffer_labels[buffer_batch_idx], dim = 0)
+                
 
                 # Forward data to model and compute loss
                 y_hat = utils.check_output(self.model(x))['y_hat']

@@ -30,7 +30,7 @@ def make_args(task_id):
     parser.add_argument('--lr_ae', type=float, default=1e-2)
     parser.add_argument('--ipc', type=int, default=1)
     parser.add_argument('--hdims', type=list, default=[6,9,12])
-    parser.add_argument('--num_seed_vec', type=int, default=1)
+    parser.add_argument('--num_seed_vec', type=int, default=13)
     parser.add_argument('--num_decoder', type=int, default=20)
 
     # Adds custom params
@@ -68,5 +68,5 @@ def make_args(task_id):
     args.iteration = OPT.CDD_ITERATIONS
     args.name_folder = f"_{task_id}"
     args.device = torch.device(f"cuda:{args.gpu_id}")
-    args.start_iteration = 1000
+    #args.start_iteration = 1000
     return args

@@ -67,9 +67,9 @@ def main(n_run, seed):
     for task_id, (task_train_sbs, task_val_sbs) in enumerate(subsets):
         args = make_args(task_id)
         
-        save_features.main(args, task_train_sbs)
-        #pretrain.main(args, task_train_sbs)
-        #main_single.main(args, task_val_sbs)
+        #save_features.main(args, task_train_sbs)
+        pretrain.main(args, task_train_sbs)
+        main_single.main(args, task_val_sbs)
         print(f"---{task_id}---")
 
 
