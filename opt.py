@@ -6,7 +6,7 @@ import os
 class OPT:
 
     # Folders
-    HOME_FOLDER = "/home/leonardolabs/Documents/simple_incremental"
+    HOME_FOLDER = "/home/francesco/Documents/single_task"
     CSV_FOLDER = f'{HOME_FOLDER}/csv/'
     DATA_FOLDER = f'{HOME_FOLDER}/../../data/'
     CHK_FOLDER = f'{HOME_FOLDER}/chk/'
@@ -21,14 +21,15 @@ class OPT:
     SEEDS = [69] #[69,1337]
 
     # Datset parameters
-    DATASET = 'CIFAR100'
-    NUM_TASKS = 10
+    DATASET = 'CIFAR10'
+    NUM_TASKS = 5
     NUM_CLASSES = DSET_CLASSES[DATASET]
-    BATCH_SIZE = 128
+    BATCH_SIZE = 256
+    NUM_WORKERS = 8
 
     # Model parameters
-    MODEL = 'dla46x_c'
-    PRETRAINED = True
+    MODEL = 'resnet32'
+    PRETRAINED = False
     DEVICE = 'cuda:0'
 
     # Load pretrained models on first and second half
@@ -54,10 +55,11 @@ class OPT:
     ############ CONT PARAMS ############
     METHOD_CONT = 'CDD'
     # Approach params, if no params, leave empty dict
-    #ARGS = {'layer':2}
+    #ARGS_CONT = {'layer':3}
+    #ARGS_CONT = {'original_impl':True}
     ARGS_CONT = {}
 
-    LR_CONT = 1e-4
+    LR_CONT = 1e-2
     WD_CONT = 1e-5
     EPOCHS_CONT = 5
 
@@ -66,6 +68,13 @@ class OPT:
 
     #######CDD#######
     CDD_ITERATIONS = 1000
+
+
+    ######ICARL#######
+    IMG_SHAPE = (3, 32, 32)
+    MEMORY_SIZE = 2000
+    EMB_SIZE = 64 # 64 for resnet32
+
 
 
     

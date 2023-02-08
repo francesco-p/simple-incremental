@@ -29,20 +29,22 @@ import os
 def MethodFactory(method, **kwargs):
     """Factory method for creating a strategy object."""
 
-    if method == 'Finetuning':
+    if method == 'finetuning':
         return st.Finetuning(**kwargs)
-    elif method == 'Ema':
+    elif method == 'ema':
         return st.Ema(**kwargs)
-    elif method == 'LessForg':
+    elif method == 'lessforg':
         return st.LessForg(**kwargs)
-    elif method == 'SurgicalFT':
+    elif method == 'surgicalft':
         return st.SurgicalFT(**kwargs)
-    elif method == 'FinetuningFC':
+    elif method == 'finetuningfc':
         return st.FinetuningFC(**kwargs)
-    elif method == 'OJKD':
+    elif method == 'ojkd':
         return st.OJKD(**kwargs)
     elif method == 'CDD':
         return st.CDD(**kwargs)
+    elif method == 'icarl':
+        return st.iCaRL(**kwargs)
     else:
         raise NotImplementedError(f"Unknown method {method}")
 
