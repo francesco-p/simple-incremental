@@ -153,8 +153,7 @@ class iCaRL(Base):
             x = x.to(OPT.DEVICE)
             y = y.to(OPT.DEVICE)
 
-            x_hack = torch.rand(x.shape).to(OPT.DEVICE)
-            old_outputs = check_output(old_model(x_hack))['y_hat']
+            old_outputs = check_output(old_model(x))['y_hat']
             new_outputs = check_output(self.model(x))['y_hat']
 
             # Compute the distillation loss
