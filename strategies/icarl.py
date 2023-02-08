@@ -27,9 +27,9 @@ class TensorDataset(Dataset):
 
 class ExamplarMemoryNI:
     """ Memory for iCaRL it does not require to implement the removal of the old classes
-    since it is used in a NI setting
+    since it is used in a NI setting K=50 because it is VERY slow otherywise.
     """
-    def __init__(self, phi, num_classes, img_size, emb_size, K=500) -> None:
+    def __init__(self, phi, num_classes, img_size, emb_size, K=50) -> None:
         # Feature extractor (should be a resnet32 as in the paper)
         self.phi = phi
         # Embedding size
@@ -38,7 +38,6 @@ class ExamplarMemoryNI:
         self.K = K
         # Number of images per class
         self.m = K // num_classes
-        self.m = 5
         # Examplar set
         self.P = torch.zeros((num_classes, self.m, *img_size))
     
@@ -167,8 +166,6 @@ class iCaRL(Base):
         
         # Move model to GPU
         self.model.to(OPT.DEVICE)
-
-
 
         ## Create a new DataLoader with the concatenated data
         #concat_dataloader = DataLoader(
