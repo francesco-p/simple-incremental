@@ -29,20 +29,12 @@ class ExamplarMemoryNI:
     """ Memory for iCaRL it does not require to implement the removal of the old classes
     since it is used in a NI setting K=50 because it is VERY slow otherywise.
     """
-    def __init__(self, phi, num_classes, img_size, emb_size, K=50) -> None:
+    def __init__(self, phi, num_classes, img_size, emb_size, K=500) -> None:
         # Feature extractor (should be a resnet32 as in the paper)
         self.phi = phi
         # Embedding size
         self.emb_size = emb_size
-        # Total number of examplars (2000 in the paper)
-        self.K = K
-        # Number of images per class
-        self.m = K // num_classes
-        # Examplar set
-        self.P = torch.zeros((num_classes, self.m, *img_size))
-    
-    def get_examplars_dset(self):
-        """ Return a TensorDataset with the examplars """
+        # Total number of examplresnet32t with the examplars """
         labels = torch.arange(self.P.shape[0]).repeat_interleave(self.m)
         data = self.P.view(-1, *self.P.shape[2:])
         return TensorDataset(data, labels)
@@ -98,6 +90,7 @@ class ExamplarMemoryNI:
             else:
                 dist[start_idx:end_idx] = torch.norm(mu - 1/k * (embeddings + examplars_mu ), dim=1)
         return dist
+
 
     def update_examplars(self, the_images, the_class):
         """ implements algorithm 4 of the paper"""

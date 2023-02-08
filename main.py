@@ -74,7 +74,7 @@ def main(n_run, seed):
         print("###########################################")
         print("########### TRAIN ON ALL DATASET ##########")
         model_all = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
-        optimizer = optim.Adam(model_all.parameters(), lr=OPT.LR_ALL, weight_decay=OPT.WD_ALL)
+        optimizer = optim.AdamW(model_all.parameters(), lr=OPT.LR_ALL, weight_decay=OPT.WD_ALL)
         train_loader, val_loader = dset.split_train_val(train_data, OPT.BATCH_SIZE)
         fh = Trainer(model_all, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_all')
         fh.train_eval(optimizer, loss_fn, OPT.EPOCHS_ALL, train_loader, val_loader)
