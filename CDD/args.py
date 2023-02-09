@@ -26,7 +26,7 @@ def make_args(task_id):
     parser.add_argument('--no_init', action = "store_true")
 
     # hparms for ae
-    parser.add_argument('--ae_iteration', type=int, default=2000)
+    parser.add_argument('--ae_iteration', type=int, default=4000)
     parser.add_argument('--lr_ae', type=float, default=1e-2)
     parser.add_argument('--ipc', type=int, default=1)
     parser.add_argument('--hdims', type=list, default=[6,9,12])
@@ -59,7 +59,7 @@ def make_args(task_id):
     parser.add_argument('--epoch', type=int, default=200)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--print_every', type=int, default=100)
-    parser.add_argument('--eval_every', type=int, default=250)
+    parser.add_argument('--eval_every', type=int, default=500)
     parser.add_argument('--buffer_every', type=int, default=100)
     parser.add_argument('--not_eval', action='store_true')
 

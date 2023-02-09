@@ -86,7 +86,11 @@ def get_model(args, model, channel, num_classes, im_size=(32, 32)):
     elif model == 'efficientnet':
         model = timm.create_model('efficientnet_b0', num_classes = num_classes, pretrained = False)
         embed = torch.nn.Sequential(*[l for l in list(model.children())[:6]])
-    
+
+    elif model == 'dla46x_c':
+        model = timm.create_model('dla46x_c', num_classes = num_classes, pretrained = False)
+        embed = torch.nn.Sequential(*[l for l in list(model.children())[:8]]).squeeze()
+        
     elif model == 'Trans':
         model = timm.create_model('vit_tiny_patch16_224', num_classes = num_classes, pretrained = False)
     

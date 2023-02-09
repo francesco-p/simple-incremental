@@ -81,7 +81,7 @@ def main(n_run, seed):
         print("###########################################")
         print("######### MODELS ALREADY TRAINED ##########")
         # [TODO] load models with dynamic epoch number (not hardcoded)
-        at_epoch=0
+        at_epoch=16
         model_fh, model_sh = utils.load_models(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch)
         fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_fh')
         sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_sh')
@@ -134,9 +134,12 @@ def main(n_run, seed):
     # Write continual metrics to csv
     append = True if n_run > 0 else False
     data = [seed] + [a for l, a in continual_metrics] + [fh_acc, sh_acc]
+    
     row = ",".join(str(value) for value in data)
 
-    fname = os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{strategy.name.replace('_','')}_{OPT.MODEL.replace('_','')}.csv")
+    print("Row: ", row)
+    fname = os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{strategy.name.replace('_','')}_{OPT.MODEL.replace('_','')}_epochs{OPT.EPOCHS_CONT}.csv")
+    print(f"File name: {fname}")
     utils.write_line_to_csv(row, fname, append)
 
     if OPT.TENSORBOARD:
@@ -149,10 +152,10 @@ if __name__ == "__main__":
     for n, seed in enumerate(OPT.SEEDS):
         if n > 0:
             OPT.ALL = False
-            OPT.LOAD_FISRT_SECOND_HALF_MODELS = False
+            OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
         else:
             print('>>>>>>>>>>>>>>Load models ALWAYS disabled<>>>><<<<<<<<<<<<') 
-            #OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
-            OPT.LOAD_FISRT_SECOND_HALF_MODELS = False
+            OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
+            #OPT.LOAD_FISRT_SECOND_HALF_MODELS = False
 
         main(n, seed)

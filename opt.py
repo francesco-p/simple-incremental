@@ -18,7 +18,7 @@ class OPT:
         os.mkdir(CSV_FOLDER)
 
     # Set multiple seeds for multiple runs
-    SEEDS = [69] #[69,1337]
+    SEEDS = [69]#[69, 1337, 444, 555, 666]
 
     # Datset parameters
     DATASET = 'CIFAR100'
@@ -46,26 +46,26 @@ class OPT:
     ############ FH PARAMS ############
     LR_FH = 1e-3
     WD_FH = 1e-4
-    EPOCHS_FH = 5
+    EPOCHS_FH = 20
     ############ SH PARAMS ############
     LR_SH = 1e-3
     WD_SH = 1e-4
-    EPOCHS_SH = 5
+    EPOCHS_SH = 20
     ############ CONT PARAMS ############
-    METHOD_CONT = 'CDD'
+    METHOD_CONT = 'Finetuning'
     # Approach params, if no params, leave empty dict
     #ARGS = {'layer':2}
     ARGS_CONT = {}
 
     LR_CONT = 1e-4
     WD_CONT = 1e-5
-    EPOCHS_CONT = 5
+    EPOCHS_CONT = 20
 
     EVAL_EVERY_CONT = 1
     #####################################
 
     #######CDD#######
-    CDD_ITERATIONS = 1000
+    CDD_ITERATIONS = 20000
 
 
     

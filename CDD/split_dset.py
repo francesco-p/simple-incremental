@@ -30,7 +30,7 @@ from trainer import Trainer
 import save_features
 import pretrain
 import argparse
-import main_single
+import CDD.main_single_temp as main_single_temp
 from args import make_args
 
 def MethodFactory(method, **kwargs):
@@ -63,14 +63,17 @@ def main(n_run, seed):
     _, small_test_loader = dset.split_train_val(test_data, OPT.BATCH_SIZE)
 
     loss_fn = nn.CrossEntropyLoss()
-  
-    for task_id, (task_train_sbs, task_val_sbs) in enumerate(subsets):
-        args = make_args(task_id)
+    args = make_args("0000")
+    #save_features.main(args, fh_train_loader.dataset)
+    pretrain.main(args, fh_train_loader.dataset)
+    main_single_temp.main(args, fh_train_loader.dataset, fh_val_loader.dataset)
+    #for task_id, (task_train_sbs, task_val_sbs) in enumerate(subsets):
+    #     args = make_args(task_id)    
+    #     save_features.main(args, task_train_sbs)
+    #     pretrain.main(args, task_train_sbs)
+    #     main_single_temp.main(args, task_train_sbs, task_val_sbs)
+    #     print(f"---{task_id}---")
         
-        #save_features.main(args, task_train_sbs)
-        pretrain.main(args, task_train_sbs)
-        main_single.main(args, task_val_sbs)
-        print(f"---{task_id}---")
 
 
 

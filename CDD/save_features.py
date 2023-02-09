@@ -30,10 +30,12 @@ def main(args, dset):
         net.train()
         for param in list(net.parameters()):
             param.requires_grad = False
-        if args.model != "efficientnet":
-            embed = net.embed
-        else:
+        if args.model == "efficientnet":
             embed = timm.create_model('efficientnet_b0', num_classes = 0, pretrained = False).to(f"cuda:{args.gpu_id}")
+        elif args.model == "dla46x_c":
+            embed = timm.create_model('dla46x_c', num_classes = 0, pretrained = False).to(f"cuda:{args.gpu_id}")
+        else:
+            embed = net.embed
 
         features_dict = {}
 

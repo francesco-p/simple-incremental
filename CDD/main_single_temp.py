@@ -8,13 +8,16 @@ from tqdm import trange
 import torch
 from torchvision.utils import save_image, make_grid
 
-from data import get_dataset, DiffAugment, ParamDiffAug
 from kfs_models.wrapper import get_model
 from kfs_utils import evaluate, Logger, get_linear_schedule_warmup_constant, default_args
 from generator import SyntheticImageGenerator
 
+from torch.utils.data import DataLoader
+from data import get_dataset, DiffAugment, ParamDiffAug, get_all_images, TensorDataset
+import timm
+from opt import OPT
 
-def main(args, dset):
+def main(args, dset_train, dset_test):
     args.device = torch.device(f"cuda:{args.gpu_id}")
     args.ae_path = f'CDD/pretrained_ae/{args.dataset}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_default.pth'
 
@@ -30,11 +33,8 @@ def main(args, dset):
     else:
         args.dsa_strategy = 'color_crop_cutout_flip_scale_rotate'
 
-    ''' feature path'''
-    args.feature_path = f'{args.feature_path}/{args.dataset}/{args.model}{args.name_folder}'
-    print(args.feature_path, args.model)
     ''' data set '''
-    channel, im_size, num_classes, normalize, _, _, testloader = get_dataset(args.dataset, args.data_path, dset)
+    channel, im_size, num_classes, normalize, images_all, indices_class, testloader = get_dataset(args.dataset, args.data_path, dset_train, dset_test)
 
     ''' model eval pool'''
     if args.model_eval_pool is None:
@@ -71,43 +71,42 @@ def main(args, dset):
     generator.broadcast_decoder()
 
     buffer = []
+    
+    #normalize = lambda x: x
+    print(f"Beginning training")
     for it in range(1, args.iteration+1):
-        ''' buffer '''
-        if len(buffer) == 0:
-            print("-------------------------Buffer Loading-------------------------")
-            for i in trange(args.buffer_every):
-                buffer_it = it + i
-                buffer.append(torch.load(f"{args.feature_path}/dsa_{buffer_it}.pth", map_location='cpu'))
-            print(f"#########################################\nstep {it}/{args.iteration}")
-                
-        ''' get feature dict '''
-        features_dict = buffer.pop(0)
-
-        ''' get model '''
-        net = get_model(args, args.model, channel, num_classes, im_size)
-        if hasattr(net, "classifier"):
-            del net.classifier
-        if hasattr(net, 'fc'):
-            del net.fc
-        #print(f"features_dict path: {args.feature_path}{args.name_folder}/dsa_{buffer_it}.pth")
-        net.load_state_dict(features_dict['state_dict'], strict=False)
-        net = net.to(args.device)
+        if it % 100 == 0:
+            print(f"Iteration {it}/{args.iteration}")
+            print(f"Loss AVG class: {loss_avg}")
+            
+        #print(f"iteration n {it}")
+        net = get_model(args, args.model, channel, num_classes, im_size).to(f"cuda:{args.gpu_id}") # get a random model
+        net = net.to(f"cuda:{args.gpu_id}")
         net.train()
         for param in list(net.parameters()):
             param.requires_grad = False
         if args.model == "efficientnet":
-            embed = torch.nn.Sequential(*[l for l in list(net.children())[:6]])
+            embed = timm.create_model('efficientnet_b0', num_classes = 0, pretrained = False).to(f"cuda:{args.gpu_id}")
         elif args.model == "dla46x_c":
-            embed = torch.nn.Sequential(*[l for l in list(net.children())[:8]]).squeeze()
+            embed = timm.create_model('dla46x_c', num_classes = 0, pretrained = False).to(f"cuda:{args.gpu_id}")
         else:
-            embed = net.embed
+            embed = net.embed        
+
+        if hasattr(net, "classifier"):
+            del net.classifier
+        if hasattr(net, 'fc'):
+            del net.fc
+
         ''' update synthetic data '''
         loss = 0.0
-        for c in range(num_classes): 
-            seed = features_dict[c]['seed']
 
-            # real
-            output_real_mean = features_dict[c]['mean'].to(args.device)
+        #print("A")
+        for c in range(num_classes):
+            seed = int(time.time() * 1000) % 100000
+            all_img_real = get_all_images(images_all, indices_class, c)
+            all_img_real = DiffAugment(normalize(all_img_real), args.dsa_strategy, seed=seed, param=args.dsa_param)
+            all_img_real = all_img_real.to(f"cuda:{args.gpu_id}")
+            output_real_mean = embed(all_img_real).mean(dim=0)
 
             # syn
             img_syn = generator.get_sample(c)[0]
@@ -117,7 +116,7 @@ def main(args, dset):
 
             # compute loss
             loss += torch.sum((output_real_mean - output_syn_mean)**2)
-
+        #print("B")
         # update
         optimizer_gen.zero_grad()
         loss.backward()
@@ -154,6 +153,10 @@ def main(args, dset):
             grid = make_grid(image_syn, nrow=args.num_seed_vec*args.num_decoder)
             save_image(image_syn, save_name, nrow=args.num_seed_vec*args.num_decoder)
 
+            data_save.append([image_syn, label_syn])
+            torch.save({'data': data_save, 'accs_all_exps': accs_all_exps, }, os.path.join(save_path, f'res_{it}.pth'))
+            torch.save(generator, os.path.join(save_path, f'generator.pth'))
+            
         if it == args.iteration: # only record the final results
             image_syn, label_syn = generator.get_all_cpu()
             image_syn, label_syn = image_syn.detach(), label_syn.detach()

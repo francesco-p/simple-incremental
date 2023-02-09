@@ -6,34 +6,39 @@ import random
 import numpy as np
 import timm
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from models.resnet32 import resnet32
 import pandas as pd
 
-def plot_csv(csv_file):
-
-    # Split name of file to get dataset name
-    dataset = csv_file.split('/')[-1].split('_')[0]
-
-    # Split name of file to get method name
-    method = csv_file.split('/')[-1].split('_')[2]
-
-    # Split name of file to get model name
-    model = csv_file.split('/')[-1].split('_')[-1].split('.')[0]
-
+def plot_csv(csv_file_list):
     fig, ax = plt.subplots(figsize=(10, 6))
+    #colors = ["firebrick", "darkcyan"]
+    cmap = mpl.colormaps["Paired"]
+    for i, csv_file in enumerate(csv_file_list):
+        
+        # Split name of file to get dataset name
+        dataset = csv_file.split('/')[-1].split('_')[0]
 
-    df = pd.read_csv(csv_file)
+        # Split name of file to get method name
+        method = csv_file.split('/')[-1].split('_')[2]
 
-    # number of tasks
-    num_tasks = df.shape[1] - 3
+        # Split name of file to get model name
+        model = csv_file.split('/')[-1].split('_')[-1].split('.')[0]
 
-    all_results = df.loc[:, df.columns[1:-2]].values
-    mean = all_results.mean(axis=0)
-    std = all_results.std(axis=0)
+        
 
-    ax.plot(mean, label=method, color='orange', ls='-')
-    ax.scatter(range(all_results.shape[1]), mean, color='orange', marker='*')
-    ax.fill_between(range(len(mean)), mean-std, mean+std, color='orange', linewidth=1, alpha=0.3)
+        df = pd.read_csv(csv_file)
+
+        # number of tasks
+        num_tasks = df.shape[1] - 3
+
+        all_results = df.loc[:, df.columns[1:-2]].values
+        mean = all_results.mean(axis=0)
+        std = all_results.std(axis=0)
+
+        ax.plot(mean, label=method, color=cmap(i), ls='-')
+        ax.scatter(range(all_results.shape[1]), mean, color=cmap(i), marker='*')
+        ax.fill_between(range(len(mean)), mean-std, mean+std, color=cmap(i), linewidth=1, alpha=0.3)
 
     ax.set_xticks(range(num_tasks))
     ax.set_xticklabels(range(1, num_tasks+1))
@@ -131,15 +136,15 @@ if __name__ == '__main__':
     out_dict = check_output(out)
     assert out_dict['y_hat'].shape == (10, 10)
 
-    # create fake csv file for testing
-    csv_file = 'csv/CIFAR100_10tasks_CDD_dla46xc.csv'
-    data = f'1000,'+','.join([str(random.random()) for _ in range(10)])+',0.5,0.6'
-    write_line_to_csv(data, csv_file, append=False)
+    # # create fake csv file for testing
+    csv_file_list = ['csv/CIFAR100_10tasks_CDD_dla46xc_epochs20.csv', 'csv/CIFAR100_10tasks_Finetuning_dla46xc_epochs20.csv']
+    # data = f'1000,'+','.join([str(random.random()) for _ in range(10)])+',0.5,0.6'
+    # write_line_to_csv(data, csv_file, append=False)
         
-    # append to csv file some fake data
-    for i in range(10):
-        data = f'{i},'+','.join([str(random.random()) for _ in range(10)])+',0.5,0.6'
-        write_line_to_csv(data, csv_file, append=True)   
+    # # append to csv file some fake data
+    # for i in range(10):
+    #     data = f'{i},'+','.join([str(random.random()) for _ in range(10)])+',0.5,0.6'
+    #     write_line_to_csv(data, csv_file, append=True)   
 
     # Test plot csv
-    plot_csv(csv_file)
+    plot_csv(csv_file_list)

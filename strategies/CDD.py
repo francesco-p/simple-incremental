@@ -79,11 +79,14 @@ class CDD(Base):
             self.buffer_images = self.buffer_images[indices].to(OPT.DEVICE)
             self.buffer_labels = self.buffer_labels[indices].to(OPT.DEVICE)
             
+            self.buffer_images *= torch.tensor(float(tag) - 1.).long()
             self.buffer_images +=  syn_images_and_labels["data"][0][0].to(OPT.DEVICE)[indices]
-            self.buffer_images /= 2.
+            self.buffer_images /= torch.tensor(float(tag)).long()
+
+            self.buffer_labels *= torch.tensor(float(tag) - 1.).long()
             self.buffer_labels = self.buffer_labels + F.one_hot(syn_images_and_labels["data"][0][1][indices], num_classes = OPT.NUM_CLASSES).to(torch.float32).to(OPT.DEVICE)
-            self.buffer_labels /= 2.
-            
+            self.buffer_labels /= torch.tensor(float(tag)).long()
+
             #self.buffer_images =  torch.cat((self.buffer_images, syn_images_and_labels["data"][0][0]), dim = 0)
             #self.buffer_labels =  torch.cat((self.buffer_labels, syn_images_and_labels["data"][0][1]), dim = 0)
             
@@ -116,16 +119,6 @@ class CDD(Base):
                 
                 x = x.to(OPT.DEVICE)
                 y = y.to(OPT.DEVICE)
-                '''
-                if int(tag)>0:
-                    idx = i
-                    if (idx+1)*OPT.BATCH_SIZE > self.buffer_labels.shape[0]: #try if better to start over or stop buffering
-                        idx = 0
-                    buffer_batch_idx = permuted_indices[idx*OPT.BATCH_SIZE : (idx+1)*OPT.BATCH_SIZE]
-
-                    x = torch.cat(x, self.buffer_images[buffer_batch_idx], dim = 0)
-                    y = torch.cat(y, self.buffer_labels[buffer_batch_idx], dim = 0)
-                '''
 
                 # Forward data to model and compute loss
                 y_hat = utils.check_output(self.model(x))['y_hat']
