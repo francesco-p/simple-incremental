@@ -10,6 +10,7 @@ from opt import OPT
 from strategies.base import Base
 from utils import check_output
 from einops import rearrange
+import stats
 
 class TensorDataset(Dataset):
     def __init__(self, x, y):
@@ -55,12 +56,13 @@ class ExamplarMemoryNI:
         """
         # Convert the tensor to a TensorDataset with dummy labels
         dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False, num_workers=num_workers)
-
+        normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
         # Compute the mean
         mu = torch.zeros(self.emb_size).to(OPT.DEVICE)
         for x in dataloader:
             x = x.to(OPT.DEVICE)
             x = x.to(torch.float32)
+            x = normalization(x)
             # Compute the embeddings of the images
             embeddings = check_output(self.phi(x))['fts']
             mu += embeddings.sum(dim=0)
@@ -74,6 +76,7 @@ class ExamplarMemoryNI:
         
         # Get the images of the first class
         for i in range(0, OPT.NUM_CLASSES):
+            print(i, end=' ')
             the_images = data[labels == i]
             # Select the examplars
             self.update_examplars(the_images, i)
@@ -81,7 +84,8 @@ class ExamplarMemoryNI:
 
     def compute_distances(self, the_images, the_class, k, mu):
         """ Compute the distances between the images and the mean"""
-        
+
+        normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
         dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False, num_workers=OPT.NUM_WORKERS)
         mu = mu.unsqueeze(0)
         examplars_mu = self.compute_mean_with_dloader(self.P[the_class, :k])
@@ -90,6 +94,7 @@ class ExamplarMemoryNI:
         for i, x in enumerate(dataloader):
             x = x.to(OPT.DEVICE)
             x = x.to(torch.float32)
+            x = normalization(x)
             start_idx = i * OPT.BATCH_SIZE
             end_idx = start_idx + OPT.BATCH_SIZE
             # Compute the embeddings of the images
@@ -122,7 +127,7 @@ class ExamplarMemoryNI:
             idx = torch.argmin(dist, dim=0)
             # Add the image to the memory
             self.P[the_class, k] = the_images[idx] # p_k
-            # Remove the image from the dataset 
+            # Remove the image from the dataset
             the_images = torch.cat((the_images[:idx], the_images[idx+1:]))
 
 
@@ -186,8 +191,11 @@ class iCaRL(Base):
         indices = train_loader.dataset.indices
         # trnsf = train_loader.dataset.dataset.transform
         data = torch.tensor(train_loader.dataset.dataset.data[indices])
+        # [TODO] WHY WE FLIP???????????????????????
         data = rearrange(data, 'b h w c -> b c h w')
         labels = torch.tensor(train_loader.dataset.dataset.targets)[indices]
+        # assumes normalization is the last transform
+        normalization_transform = train_loader.dataset.dataset.transform.transforms[-1]
         with torch.no_grad():
             self.replay_buffer.construct_examplar_set(data, labels)
 
