@@ -4,7 +4,7 @@ import random
 import argparse
 import numpy as np
 from tqdm import trange
-
+import time
 import torch
 from torchvision.utils import save_image, make_grid
 
@@ -40,7 +40,7 @@ def main(args, dset_train, dset_test):
     if args.model_eval_pool is None:
         args.model_eval_pool = [args.model]
     else:
-        args.model_eval_pool = args.model_eval_pool.split("_")
+        args.model_eval_pool = args.model_eval_pool.split("/")
     accs_all_exps = dict() # record performances of all experiments
     for key in args.model_eval_pool:
         accs_all_exps[key] = []
@@ -74,7 +74,7 @@ def main(args, dset_train, dset_test):
     
     #normalize = lambda x: x
     print(f"Beginning training")
-    for it in range(1, args.iteration+1):
+    for it in trange(1, args.iteration+1):
         if it % 100 == 0:
             print(f"Iteration {it}/{args.iteration}")
             print(f"Loss AVG class: {loss_avg}")
@@ -106,6 +106,7 @@ def main(args, dset_train, dset_test):
             all_img_real = get_all_images(images_all, indices_class, c)
             all_img_real = DiffAugment(normalize(all_img_real), args.dsa_strategy, seed=seed, param=args.dsa_param)
             all_img_real = all_img_real.to(f"cuda:{args.gpu_id}")
+            
             output_real_mean = embed(all_img_real).mean(dim=0)
 
             # syn
@@ -153,9 +154,9 @@ def main(args, dset_train, dset_test):
             grid = make_grid(image_syn, nrow=args.num_seed_vec*args.num_decoder)
             save_image(image_syn, save_name, nrow=args.num_seed_vec*args.num_decoder)
 
-            data_save.append([image_syn, label_syn])
-            torch.save({'data': data_save, 'accs_all_exps': accs_all_exps, }, os.path.join(save_path, f'res_{it}.pth'))
-            torch.save(generator, os.path.join(save_path, f'generator.pth'))
+            #data_save.append([image_syn, label_syn])
+            #torch.save({'data': data_save, 'accs_all_exps': accs_all_exps, }, os.path.join(save_path, f'res_{it}.pth'))
+            torch.save(generator, os.path.join(save_path, f'generator_{it}.pth'))
             
         if it == args.iteration: # only record the final results
             image_syn, label_syn = generator.get_all_cpu()

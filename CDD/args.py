@@ -30,8 +30,8 @@ def make_args(task_id):
     parser.add_argument('--lr_ae', type=float, default=1e-2)
     parser.add_argument('--ipc', type=int, default=1)
     parser.add_argument('--hdims', type=list, default=[6,9,12])
-    parser.add_argument('--num_seed_vec', type=int, default=10)
-    parser.add_argument('--num_decoder', type=int, default=10)
+    parser.add_argument('--num_seed_vec', type=int, default=3)
+    parser.add_argument('--num_decoder', type=int, default=5)
 
     # Adds custom params
     parser.add_argument('--stride', type=int, default=2)
@@ -49,13 +49,13 @@ def make_args(task_id):
 
     # hparms for ours
     parser.add_argument('--lr_seed_vec', type=float, default=1e-1)
-    parser.add_argument('--lr_iteration', type=list, default=[50, 100, 150])
+    parser.add_argument('--lr_iteration', type=list, default=[2000, 3000, 4000])
     parser.add_argument('--lr_decoder', type=float, default=1e-2)
     parser.add_argument('--linear_schedule', action='store_true')
 
 
     # image syn evaluation
-    parser.add_argument('--model_eval_pool', type=str, default=None)
+    parser.add_argument('--model_eval_pool', type=str, default="ConvNet/dla46x_c")
     parser.add_argument('--epoch', type=int, default=200)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--print_every', type=int, default=100)

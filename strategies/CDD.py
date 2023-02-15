@@ -6,7 +6,7 @@ import utils
 from torch import optim
 from strategies.base import Base
 from torch.utils.data import ConcatDataset, Dataset, DataLoader
-
+import os
 
 
 class TensorDataset(Dataset):
@@ -46,6 +46,7 @@ class CDD(Base):
         self.buffer_images = torch.tensor([])
         self.buffer_labels = torch.tensor([])
 
+
     def train(self, train_loader, val_loader, writer, tag, scheduler=False):
         self.model.to(OPT.DEVICE)
 
@@ -53,32 +54,27 @@ class CDD(Base):
             sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.EPOCHS_CONT, steps_per_epoch=len(train_loader))
 
         if int(tag) == 0:
-            train_dataset = TensorDataset_one_hot(train_loader.dataset)
-            train_loader = DataLoader(train_dataset,
-                                          batch_size=OPT.BATCH_SIZE,
-                                          shuffle=True # important to shuffle the data
-                                          )
-
-        if int(tag) == 1:
-            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_16_8/task_{int(tag) - 1}/res.pth")
-            self.buffer_images = syn_images_and_labels["data"][0][0][:1500]
-            self.buffer_labels = F.one_hot(syn_images_and_labels["data"][0][1], num_classes = OPT.NUM_CLASSES)[:1500]
+            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_10_10/task_0000/res.pth")
+            self.buffer_images = syn_images_and_labels["data"][0][0][:OPT.BUFFER_SIZE]
+            self.buffer_labels = F.one_hot(syn_images_and_labels["data"][0][1], num_classes = OPT.NUM_CLASSES)[:OPT.BUFFER_SIZE]
             replay_buffer_dset = TensorDataset(self.buffer_images, self.buffer_labels)
             train_dataset = TensorDataset_one_hot(train_loader.dataset)
 
-            # Create a new DataLoader with the concatenated data
             train_loader = DataLoader(
                 ConcatDataset((replay_buffer_dset, train_dataset)),
                 batch_size=OPT.BATCH_SIZE,
                 shuffle=True # important to shuffle the data
             )
-            
-        if int(tag)>1:
-            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_16_8/task_{int(tag) - 1}/res.pth")
-            indices = torch.randperm(self.buffer_labels.shape[0])[:1500]
+
+        if int(tag)>0:
+            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_10_10/task_{int(tag) - 1}/res.pth")
+            indices = torch.randperm(self.buffer_labels.shape[0])[:OPT.BUFFER_SIZE]
             self.buffer_images = self.buffer_images[indices].to(OPT.DEVICE)
             self.buffer_labels = self.buffer_labels[indices].to(OPT.DEVICE)
+
+            indices = torch.randperm(syn_images_and_labels["data"][0][1].shape[0])[:OPT.BUFFER_SIZE]
             
+            #normalize keeping count of how many task have been avaraged so far
             self.buffer_images *= torch.tensor(float(tag) - 1.).long()
             self.buffer_images +=  syn_images_and_labels["data"][0][0].to(OPT.DEVICE)[indices]
             self.buffer_images /= torch.tensor(float(tag)).long()
@@ -123,7 +119,7 @@ class CDD(Base):
                 # Forward data to model and compute loss
                 y_hat = utils.check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
-                y_onehot = y#F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+                y_onehot = y.to(torch.float32) #F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
                 loss_train = self.loss_fn(y_hat, y_onehot)
 
                 # Backward
@@ -134,7 +130,7 @@ class CDD(Base):
                 # Record & update learning rate
                 if scheduler:
                     sched.step()
-
+               
                 # Compute measures
                 cumul_loss_train += loss_train.item()
                 cumul_acc_train += (y_hat.argmax(dim=1) == y.argmax(dim=1)).sum().item()
@@ -183,7 +179,9 @@ class CDD(Base):
         
         return cumul_loss_eval, cumul_acc_eval
 
-
+    def get_name():
+        fname = os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{OPT.METHOD_CONT}_{OPT.MODEL.replace('_','')}_epochs{OPT.EPOCHS_CONT}_buffer{OPT.BUFFER_SIZE}.csv")
+        return fname
     def log_metrics(self, loss, acc, epoch, session, writer, tag):
         """ Prints metrics to screen and logs to tensorboard """
         print(f'        {tag}_{session:<6} - l:{loss:.5f}  a:{acc:.5f}')

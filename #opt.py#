@@ -1,3 +1,4 @@
+
 from stats import DSET_CLASSES
 import os
 
@@ -46,27 +47,26 @@ class OPT:
     ############ FH PARAMS ############
     LR_FH = 1e-3
     WD_FH = 1e-4
-    EPOCHS_FH = 16
+    EPOCHS_FH = 20
     ############ SH PARAMS ############
-    LR_SH = 1e-4
-    WD_SH = 1e-5
-    EPOCHS_SH = 30
+    LR_SH = 1e-3
+    WD_SH = 1e-4
+    EPOCHS_SH = 20
     ############ CONT PARAMS ############
-    METHOD_CONT = 'CDD'
+    METHOD_CONT = 'Finetuning'
     # Approach params, if no params, leave empty dict
     #ARGS = {'layer':2}
     ARGS_CONT = {}
 
     LR_CONT = 1e-4
     WD_CONT = 1e-5
-    EPOCHS_CONT = 8
-    
+    EPOCHS_CONT = 20
 
     EVAL_EVERY_CONT = 1
     #####################################
 
     #######CDD#######
-    CDD_ITERATIONS = 5000
-    BUFFER_SIZE = 3000
+    CDD_ITERATIONS = 20000
+
 
     

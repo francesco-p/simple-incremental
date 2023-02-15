@@ -118,7 +118,7 @@ if __name__ == "__main__":
     # Prepare data
     data = get_dset_data('CIFAR10', OPT.DATA_FOLDER, train=True)
     train_loader, val_loader = split_train_val(data, bsize=1)
-    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks = prepare_tasks(data, num_tasks=10, bsize=1)
+    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, _ = prepare_tasks(data, num_tasks=10, bsize=1)
 
     # Print some info
     print('Train loader len: {}'.format(len(train_loader)))

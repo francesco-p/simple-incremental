@@ -81,10 +81,12 @@ def main(n_run, seed):
         print("###########################################")
         print("######### MODELS ALREADY TRAINED ##########")
         # [TODO] load models with dynamic epoch number (not hardcoded)
-        at_epoch=16
-        model_fh, model_sh = utils.load_models(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch)
-        fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_fh')
-        sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_sh')
+        at_epoch=13
+        model_fh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, tag = "fh")
+        at_epoch = 9
+        model_sh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, tag = "sh")
+        fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, seed, f'{OPT.DATASET}_{OPT.MODEL}_fh')
+        sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, seed, f'{OPT.DATASET}_{OPT.MODEL}_sh')
 
 
     else:
@@ -93,13 +95,13 @@ def main(n_run, seed):
         print("FIRST HALF")
         model_fh = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
         optimizer = optim.AdamW(model_fh.parameters(), lr=OPT.LR_FH, weight_decay=OPT.WD_FH)
-        fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_fh')
+        fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, seed, tag=f'{OPT.DATASET}_{OPT.MODEL}_fh')
         fh.train_eval(optimizer, loss_fn, OPT.EPOCHS_FH, fh_train_loader, fh_val_loader)
 
         print("SECOND HALF")
         model_sh = copy.deepcopy(model_fh)
         optimizer = optim.AdamW(model_sh.parameters(), lr=OPT.LR_SH, weight_decay=OPT.WD_SH)
-        sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_sh')
+        sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, seed, tag=f'{OPT.DATASET}_{OPT.MODEL}_sh')
         sh.train_eval(optimizer, loss_fn, OPT.EPOCHS_SH, sh_train_loader, sh_val_loader)
 
     print("###########################################")
@@ -155,7 +157,7 @@ if __name__ == "__main__":
             OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
         else:
             print('>>>>>>>>>>>>>>Load models ALWAYS disabled<>>>><<<<<<<<<<<<') 
+            #OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
             OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
-            #OPT.LOAD_FISRT_SECOND_HALF_MODELS = False
 
         main(n, seed)

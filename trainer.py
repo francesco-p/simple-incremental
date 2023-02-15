@@ -6,14 +6,14 @@ from opt import OPT
 class Trainer:
     """Trainer class for training a model on a dataset."""
 
-    def __init__(self, model, device, num_classes, writer, tag, checkpoint_path=OPT.CHK_FOLDER):
+    def __init__(self, model, device, num_classes, writer, tag, seed, checkpoint_path=OPT.CHK_FOLDER):
         self.model = model
         self.device = device
         self.num_classes = num_classes
         self.writer = writer
         self.tag = tag
         self.checkpoint_path = checkpoint_path
-
+        self.seed = seed
 
     def _train_epoch(self, train_loader, optimizer, loss_fn):
         """Train the model for one epoch."""
@@ -26,6 +26,10 @@ class Trainer:
             x = x.to(self.device)
             y = y.to(self.device)
 
+            # for p in self.model.parameters():
+            #     print(p)
+            #     break        
+            #      
             # Forward data to model and compute loss
             y_hat = check_output(self.model(x))['y_hat']
             y_hat = y_hat.to(torch.float32)
@@ -89,7 +93,7 @@ class Trainer:
             if (epoch == 0) or ((epoch % eval_every) == 0):
                 val_loss, val_acc = self.eval(val_loader, loss_fn)
                 self.log_metrics(val_loss, val_acc, epoch, 'eval', self.writer)
-                torch.save(self.model.state_dict(), f'{self.checkpoint_path}/{self.tag}_epoch{epoch:04}.pt')
+                torch.save(self.model.state_dict(), f'{self.checkpoint_path}/{self.tag}_epoch{epoch:04}_seed{self.seed}.pt')
 
 
     def log_metrics(self, loss, acc, epoch, session, writer):

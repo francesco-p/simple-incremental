@@ -66,6 +66,20 @@ def load_models(model, dataset, num_classes, epoch, device=OPT.DEVICE, chk_folde
 
     return model_fh, model_sh
 
+def load_model(model_name, dataset, num_classes, epoch, tag, device=OPT.DEVICE, chk_folder=OPT.CHK_FOLDER):
+    """ Load models from checkpoint of a given epoch 
+    the epoch number is padded with zeros to 4 digits"""
+    
+    model =  get_model(model_name, num_classes, False)
+    name = f'{chk_folder}/{dataset}_{model_name}_{tag}_epoch{epoch:04}.pt'
+    #print(f"NAME:\n{name}")
+    model.load_state_dict(torch.load(name))
+    
+    model = model.to(device)
+   
+    return model
+
+
 
 def write_line_to_csv(data, name, append=False, log=False):
     """ Write a line to a csv file. If append is False, the file is overwritten. """
@@ -102,10 +116,19 @@ def get_model(model_name, num_classes, pretrained):
 
 def set_seeds(seed):
     """ Set reproducibility seeds """
-    torch.manual_seed(seed)
+    # torch.manual_seed(seed)
+    # random.seed(seed)
+    # np.random.seed(seed)
+
     random.seed(seed)
     np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed) 
 
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    #torch.backends.cudnn.enabled = False
 
 def check_output(out):
     """ Checks if output is a tuple and returns a dictionary"""
