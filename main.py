@@ -45,6 +45,10 @@ def MethodFactory(method, **kwargs):
         return st.CDD(**kwargs)
     elif method == 'icarl':
         return st.iCaRL(**kwargs)
+    elif method == 'boundary':
+        return st.Boundary(**kwargs)
+    elif method == 'replay':
+        return st.Replay(**kwargs)
     else:
         raise NotImplementedError(f"Unknown method {method}")
 
@@ -60,6 +64,7 @@ def main(n_run, seed):
 
     print("###########################################")
     print("########### DATASET PREPARATION ###########")
+
 
     train_data = dset.get_dset_data(OPT.DATASET, train=True)
     (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = dset.prepare_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
@@ -83,8 +88,14 @@ def main(n_run, seed):
         print("###########################################")
         print("######### MODELS ALREADY TRAINED ##########")
         # [TODO] load models with dynamic epoch number (not hardcoded)
-        at_epoch=0
-        model_fh, model_sh = utils.load_models(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch)
+        at_epoch=9999
+        at_seed = 0
+        model_fh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, at_seed, 'fh')
+
+        print(' this is an evil hack and you syould not do it check it please'*100)
+        # we load fh model even for sh because we compare with CDD in the server
+        model_sh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, at_seed, 'fh')
+
         fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_fh')
         sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_sh')
 
@@ -114,6 +125,7 @@ def main(n_run, seed):
     continual_metrics = []
     OPT.ARGS_CONT['model'] = model_c
     strategy = MethodFactory(OPT.METHOD_CONT, **OPT.ARGS_CONT)
+    print(f"Continual learning with {OPT.METHOD_CONT} strategy")
     for task_id, (task_train_loader, task_val_loader) in enumerate(tasks):
        print(f"---Task {task_id}---")
        tag = f'{task_id}'
@@ -133,12 +145,12 @@ def main(n_run, seed):
     print(f"model_second_half accuracy @ eval_second_half: {sh_acc:.5f}")
 
     # Write continual metrics to csv
-    append = True if n_run > 0 else False
+    #append = True if n_run > 0 else False
     data = [seed] + [a for l, a in continual_metrics] + [fh_acc, sh_acc]
     row = ",".join(str(value) for value in data)
 
-    fname = os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{strategy.name.replace('_','')}_{OPT.MODEL.replace('_','')}.csv")
-    utils.write_line_to_csv(row, fname, append)
+    fname = strategy.get_csv_name()
+    utils.write_line_to_csv(row, fname, OPT.APPEND)
 
     if OPT.TENSORBOARD:
         writer.close()
@@ -150,10 +162,11 @@ if __name__ == "__main__":
     for n, seed in enumerate(OPT.SEEDS):
         if n > 0:
             OPT.ALL = False
-            OPT.LOAD_FISRT_SECOND_HALF_MODELS = False
+            OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
         else:
-            print('>>>>>>>>>>>>>>Load models ALWAYS disabled<>>>><<<<<<<<<<<<') 
+            #print('>>>>>>>>>>>>>>Load models ALWAYS disabled<>>>><<<<<<<<<<<<') 
             #OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
-            OPT.LOAD_FISRT_SECOND_HALF_MODELS = False
+            
+            OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
 
         main(n, seed)

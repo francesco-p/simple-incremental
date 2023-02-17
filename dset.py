@@ -4,6 +4,7 @@ from torchvision.datasets import CIFAR10, CIFAR100, SVHN
 from torch.utils.data import DataLoader, Subset, Dataset
 from stats import DSET_TRANSF
 
+
 class TaskDataset(Dataset):
     """ Dataset for a task. It is a subset of a dataset. """
     def __init__(self, dataset, indices):
@@ -118,7 +119,7 @@ if __name__ == "__main__":
     # Prepare data
     data = get_dset_data('CIFAR10', OPT.DATA_FOLDER, train=True)
     train_loader, val_loader = split_train_val(data, bsize=1)
-    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks = prepare_tasks(data, num_tasks=10, bsize=1)
+    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = prepare_tasks(data, num_tasks=10, bsize=1)
 
     # Print some info
     print('Train loader len: {}'.format(len(train_loader)))

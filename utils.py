@@ -7,70 +7,70 @@ import numpy as np
 import timm
 import matplotlib.pyplot as plt
 from models.resnet32 import resnet32
+from models.resnet9 import ResNet9
 import pandas as pd
+import seaborn as sns
+import os
 
-def plot_csv(csv_file):
+def plot_csv(csv_files, dataset, methods, model):
 
     # Split name of file to get dataset name
-    dataset = csv_file.split('/')[-1].split('_')[0]
+    #dataset = csv_file.split('/')[-1].split('_')[0]
 
     # Split name of file to get method name
-    method = csv_file.split('/')[-1].split('_')[2]
+    #method = csv_file.split('/')[-1].split('_')[2]
 
     # Split name of file to get model name
-    model = csv_file.split('/')[-1].split('_')[-1].split('.')[0]
-
+    #model = csv_file.split('/')[-1].split('_')[-1].split('.')[0]
+    colors = sns.color_palette("magma", n_colors=5)
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    df = pd.read_csv(csv_file)
+    # Read csv file
+    for i, (csv_file, method) in enumerate(zip(csv_files, methods)):
 
-    # number of tasks
-    num_tasks = df.shape[1] - 3
+        df = pd.read_csv(csv_file)
 
-    all_results = df.loc[:, df.columns[1:-2]].values
-    mean = all_results.mean(axis=0)
-    std = all_results.std(axis=0)
+        # number of tasks
+        num_tasks = df.shape[1] - 3
 
-    ax.plot(mean, label=method, color='orange', ls='-')
-    ax.scatter(range(all_results.shape[1]), mean, color='orange', marker='*')
-    ax.fill_between(range(len(mean)), mean-std, mean+std, color='orange', linewidth=1, alpha=0.3)
+        all_results = df.loc[:, df.columns[1:-2]].values
+        mean = all_results.mean(axis=0)
+        std = all_results.std(axis=0)
 
-    ax.set_xticks(range(num_tasks))
-    ax.set_xticklabels(range(1, num_tasks+1))
-    ax.set_xlabel('Tasks')
-    ax.set_ylabel('Accuracy')
-    ax.set_title(f'Performance on {dataset} dataset - model {model}')
-    ax.legend()
+        plt.plot(mean, label=method, color=colors[i], ls='-')
+        ax.scatter(range(all_results.shape[1]), mean, color=colors[i])
+        ax.fill_between(range(len(mean)), mean-std, mean+std, linewidth=1, color=colors[i], alpha=0.3)
+
+        ax.set_xticks(range(num_tasks))
+        ax.set_xticklabels(range(1, num_tasks+1))
+        ax.set_xlabel('Tasks')
+        ax.set_ylabel('Accuracy')
+        ax.set_title(f'Performance on {dataset} dataset - model {model}')
+        ax.legend()
     plt.show()
 
 
-def load_models(model, dataset, num_classes, epoch, device=OPT.DEVICE, chk_folder=OPT.CHK_FOLDER):
-    """ Load models from checkpoint of a given epoch 
+def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.DEVICE, chk_folder=OPT.CHK_FOLDER):
+    """ Load model from checkpoint of a given epoch 
     the epoch number is padded with zeros to 4 digits"""
     
-    model_fh =  get_model(model, num_classes, False)
-    name = f'{chk_folder}/{dataset}_{model}_fh_epoch{epoch:04}.pt'
-    model_fh.load_state_dict(torch.load(name))
+    model=  get_model(model_name, num_classes, False)
+    name = f'{chk_folder}/{dataset}_{model_name}_{tag}_epoch{epoch:04}_seed{seed}.pt'
+    model.load_state_dict(torch.load(name))
     
-    model_sh =  get_model(model, num_classes, False)
-    name = f'{chk_folder}/{dataset}_{model}_sh_epoch{epoch:04}.pt'
-    model_sh.load_state_dict(torch.load(name))
-    
-    model_fh = model_fh.to(device)
-    model_sh = model_sh.to(device)
-
-    return model_fh, model_sh
+    model = model.to(device)
+    return model
 
 
-def write_line_to_csv(data, name, append=False, log=False):
+def write_line_to_csv(data, name, append=False, log=True):
     """ Write a line to a csv file. If append is False, the file is overwritten. """
     # Write header
     header = 'seed,'+','.join([f'task{n+1}' for n in range(OPT.NUM_TASKS)])+',first_half,second_half'
-    if not append:
+    
+    if not os.path.exists(name) or not append:
         with open(name, 'w') as f:
             f.write(header+'\n')
 
-    # Write data to file    
     with open(name, 'a') as f:
         f.write(data+'\n')
         if log:
@@ -81,6 +81,8 @@ def get_model(model_name, num_classes, pretrained):
 
     if model_name == 'resnet18':
         model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
+    elif model_name == 'resnet34':
+        model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
     elif model_name == 'dla46x_c':
         model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
     elif model_name == 'mobilenetv2_035':
@@ -89,6 +91,10 @@ def get_model(model_name, num_classes, pretrained):
         if pretrained:
             raise NotImplementedError('Pretrained resnet32 is not implemented')
         model = resnet32(num_classes=num_classes, pretrained=pretrained)
+    elif model_name == 'resnet9':
+        if pretrained:
+            raise NotImplementedError('Pretrained resnet9 is not implemented')
+        model = ResNet9(in_channels=3, num_classes=num_classes)
     else:
         raise NotImplementedError(f"Unknown model {model_name}")
 
@@ -100,6 +106,11 @@ def set_seeds(seed):
     torch.manual_seed(seed)
     random.seed(seed)
     np.random.seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.enabled = False
 
 
 def check_output(out):

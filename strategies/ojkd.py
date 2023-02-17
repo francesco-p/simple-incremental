@@ -5,6 +5,7 @@ from torch import optim
 import torch.nn as nn
 from utils import check_output
 from strategies.base import Base
+import os
 
 class ResNet18_FR(nn.Module):
     """ Feature Refiner for ResNet18 """
@@ -163,3 +164,5 @@ class OJKD(Base):
             writer.add_scalar(f'{tag}/loss/{session}', loss, epoch)
             writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
 
+    def get_csv_name(self):
+        return os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{self.name.replace('_','')}_{OPT.MODEL.replace('_','')}.csv")
