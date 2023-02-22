@@ -54,7 +54,7 @@ def MethodFactory(method, **kwargs):
 
 
 
-def main(n_run, seed):
+def main(seed):
     utils.set_seeds(seed)
 
     if OPT.TENSORBOARD:
@@ -164,14 +164,4 @@ def main(n_run, seed):
 
 if __name__ == "__main__":
     
-    # Set seeds for multiple runs
-    for n, seed in enumerate(OPT.SEEDS):
-        if n > 0:
-            OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
-        else:
-            #print('>>>>>>>>>>>>>>Load models ALWAYS disabled<>>>><<<<<<<<<<<<') 
-            #OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
-            
-            OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
-
-        main(n, seed)
+    main(OPT.SEED)
