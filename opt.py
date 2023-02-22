@@ -1,6 +1,23 @@
 from stats import DSET_CLASSES, DSET_IMG_SHAPE
 import os
 import argparse
+from terminaltables import SingleTable
+
+def beautify_args(args):
+    # Create a list of lists containing argument names and values
+    arg_lists = [['Argument', 'Value']]
+    for arg in vars(args):
+        arg_lists.append([arg, getattr(args, arg)])
+
+    # Create a table object with the argument list
+    table = SingleTable(arg_lists)
+
+    # Format the table
+    table.inner_row_border = True
+    table.inner_column_border = False
+
+    return table.table
+
 
 
 # Params
@@ -62,7 +79,8 @@ class OPT:
     parser.add_argument('--cdd_iterations', type=int, default=1000, help='Buffer size of replay strategy')
 
     opts = parser.parse_args()
-    print(opts)
+    table = beautify_args(opts)
+    print(table)
 
     # Folders
     PROJECT_FOLDER = opts.project_path
