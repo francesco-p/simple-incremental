@@ -10,3 +10,4 @@ CDD/results
 CDD/pretrained_ae
 *.py~
 venv/
+tests/
