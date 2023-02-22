@@ -65,61 +65,62 @@ def main(n_run, seed):
     print("###########################################")
     print("########### DATASET PREPARATION ###########")
 
-
-    train_data = dset.get_dset_data(OPT.DATASET, train=True)
-    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = dset.prepare_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
-
-    test_data = dset.get_dset_data(OPT.DATASET, train=False)
-    _, small_test_loader = dset.split_train_val(test_data, OPT.BATCH_SIZE)
-
-    loss_fn = nn.CrossEntropyLoss()
-
-
-    if OPT.ALL:
-        print("###########################################")
-        print("########### TRAIN ON ALL DATASET ##########")
-        model_all = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
-        optimizer = optim.AdamW(model_all.parameters(), lr=OPT.LR_ALL, weight_decay=OPT.WD_ALL)
-        train_loader, val_loader = dset.split_train_val(train_data, OPT.BATCH_SIZE)
-        fh = Trainer(model_all, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_all')
-        fh.train_eval(optimizer, loss_fn, OPT.EPOCHS_ALL, train_loader, val_loader)
-
-    if OPT.LOAD_FISRT_SECOND_HALF_MODELS:
-        print("###########################################")
-        print("######### MODELS ALREADY TRAINED ##########")
-        # [TODO] load models with dynamic epoch number (not hardcoded)
-        at_epoch=9999
-        at_seed = 0
-        model_fh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, at_seed, 'fh')
-
-        print(' this is an evil hack and you syould not do it check it please'*100)
-        # we load fh model even for sh because we compare with CDD in the server
-        model_sh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, at_seed, 'fh')
-
-        fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_fh')
-        sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_sh')
-
-
+    if OPT.DATASET == 'Core50':
+        # Core50 does not support warmup
+        tasks, validation = dset.gen_core50_tasks()
     else:
-        print("###########################################")
-        print("############# FIRST / SECOND ##############")
-        print("FIRST HALF")
-        model_fh = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
-        optimizer = optim.AdamW(model_fh.parameters(), lr=OPT.LR_FH, weight_decay=OPT.WD_FH)
-        fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_fh')
-        fh.train_eval(optimizer, loss_fn, OPT.EPOCHS_FH, fh_train_loader, fh_val_loader)
+        train_data = dset.get_dset_data(OPT.DATASET, train=True)
+        test_data = dset.get_dset_data(OPT.DATASET, train=False)
+        #_, small_test_loader = dset.split_train_val(test_data, OPT.BATCH_SIZE)
+        
+        if OPT.DO_WARMUP:
+            (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = dset.get_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
+        else:
+            tasks, subsets = dset.get_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
 
-        print("SECOND HALF")
-        model_sh = copy.deepcopy(model_fh)
-        optimizer = optim.AdamW(model_sh.parameters(), lr=OPT.LR_SH, weight_decay=OPT.WD_SH)
-        sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_sh')
-        sh.train_eval(optimizer, loss_fn, OPT.EPOCHS_SH, sh_train_loader, sh_val_loader)
+
+    if OPT.DO_WARMUP:
+        if OPT.LOAD_FISRT_SECOND_HALF_MODELS:
+            print("###########################################")
+            print("######### MODELS ALREADY TRAINED ##########")
+            # [TODO] load models with dynamic epoch number (not hardcoded)
+            at_epoch=9999
+            at_seed = 0
+            model_fh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, at_seed, 'fh')
+
+            print(' this is an evil hack and you syould not do it check it please'*100)
+            # we load fh model even for sh because we compare with CDD in the server
+            model_sh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, at_seed, 'fh')
+
+            fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_fh')
+            sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_sh')
+
+
+        else:
+            print("###########################################")
+            print("############# FIRST / SECOND ##############")
+            print("FIRST HALF")
+            loss_fn = nn.CrossEntropyLoss()
+            model_fh = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
+            optimizer = optim.AdamW(model_fh.parameters(), lr=OPT.LR_FH, weight_decay=OPT.WD_FH)
+            fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_fh')
+            fh.train_eval(optimizer, loss_fn, OPT.EPOCHS_FH, fh_train_loader, fh_val_loader)
+
+            print("SECOND HALF")
+            model_sh = copy.deepcopy(model_fh)
+            loss_fn = nn.CrossEntropyLoss()
+            optimizer = optim.AdamW(model_sh.parameters(), lr=OPT.LR_SH, weight_decay=OPT.WD_SH)
+            sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, tag=f'{OPT.DATASET}_{OPT.MODEL}_sh')
+            sh.train_eval(optimizer, loss_fn, OPT.EPOCHS_SH, sh_train_loader, sh_val_loader)
 
     print("###########################################")
     print("############## CONTINUAL STEP #############")
 
     # Copy the model to avoid overwriting
-    model_c = copy.deepcopy(model_fh)
+    if OPT.DO_WARMUP:
+        model_c = copy.deepcopy(model_fh)
+    else:
+        model_c = utils.get_model(OPT.MODEL, OPT.NUM_CLASSES, OPT.PRETRAINED)
 
     # Create the approach and train
     continual_metrics = []
@@ -127,30 +128,35 @@ def main(n_run, seed):
     strategy = MethodFactory(OPT.METHOD_CONT, **OPT.ARGS_CONT)
     print(f"Continual learning with {OPT.METHOD_CONT} strategy")
     for task_id, (task_train_loader, task_val_loader) in enumerate(tasks):
-       print(f"---Task {task_id}---")
-       tag = f'{task_id}'
-       strategy.train(task_train_loader, task_val_loader, writer, tag)
-       sh_loss, sh_acc = strategy.eval(sh_val_loader, writer, 'sh')
-       continual_metrics.append((sh_loss, sh_acc))
+        print(f"---Task {task_id}---")
+        tag = f'{task_id}'
+        strategy.train(task_train_loader, task_val_loader, writer, tag)
+        if OPT.DO_WARMUP:
+            loss, acc = strategy.eval(sh_val_loader, writer, 'sh')
+        else:
+            if OPT.DATASET == 'Core50':
+                loss, acc = strategy.eval(validation, writer, 'sh')
+            else:
+                loss, acc = strategy.eval(sh_val_loader, writer, 'sh')
+
+        continual_metrics.append((loss, acc))
 
     
-    # Print accuracies
-    
-    # print("m total @ val2:")
-    # all_l, all_a = utils.inference(model_all, loss_fn, sh_val_loader) 
-    
-    _, fh_acc = fh.eval(sh_val_loader, loss_fn)
-    print(f"model_first_half accuracy @ eval_second_half: {fh_acc:.5f}")
-    _, sh_acc = sh.eval(sh_val_loader, loss_fn)
-    print(f"model_second_half accuracy @ eval_second_half: {sh_acc:.5f}")
+    print("###########################################")
+    print("############## WRITE TO CSV #############")
+    if OPT.DO_WARMUP:
+        loss_fn = nn.CrossEntropyLoss()
+        _, fh_acc = fh.eval(sh_val_loader, loss_fn)
+        print(f"model_first_half accuracy @ eval_second_half: {fh_acc:.5f}")
+        _, sh_acc = sh.eval(sh_val_loader, loss_fn)
+        print(f"model_second_half accuracy @ eval_second_half: {sh_acc:.5f}")
 
-    # Write continual metrics to csv
-    #append = True if n_run > 0 else False
-    data = [seed] + [a for l, a in continual_metrics] + [fh_acc, sh_acc]
+        data = [seed] + [a for l, a in continual_metrics] + [fh_acc, sh_acc]
+    else:
+        data = [seed] + [a for l, a in continual_metrics] + [0, 0]
+    
     row = ",".join(str(value) for value in data)
-
-    fname = strategy.get_csv_name()
-    utils.write_line_to_csv(row, fname, OPT.APPEND)
+    utils.write_line_to_csv(row, strategy.get_csv_name(), OPT.APPEND)
 
     if OPT.TENSORBOARD:
         writer.close()
@@ -161,7 +167,6 @@ if __name__ == "__main__":
     # Set seeds for multiple runs
     for n, seed in enumerate(OPT.SEEDS):
         if n > 0:
-            OPT.ALL = False
             OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
         else:
             #print('>>>>>>>>>>>>>>Load models ALWAYS disabled<>>>><<<<<<<<<<<<') 

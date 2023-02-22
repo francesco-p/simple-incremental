@@ -1,8 +1,63 @@
 from opt import OPT
 import torch
 from torchvision.datasets import CIFAR10, CIFAR100, SVHN
-from torch.utils.data import DataLoader, Subset, Dataset
+from torch.utils.data import DataLoader, Subset, Dataset, ConcatDataset
 from stats import DSET_TRANSF
+import glob
+import random
+import cv2
+from torchvision import transforms
+import stats
+
+class Core50Dataset(Dataset):
+    """ Scenario Dataset for Core50 it requires a scenario number  """
+    
+    def __init__(self, data_path, scenario_n, transform=None):
+        self.data_path = data_path+'/core50_128x128/'
+        self.transform = transform
+        self.scenario_n = scenario_n
+        self._set_data_and_labels()
+
+    def _set_data_and_labels(self):
+        """ Retrieve all paths and labels and shuffle them"""
+
+        # Retrieve all paths of the specified shenario
+        self.paths = glob.glob(self.data_path+'/'+f's{self.scenario_n}/*/*.png')
+        self.labels = self._extract_labels_from_paths(self.paths)
+        
+        # Shuffle the lists in unison
+        combined = list(zip(self.paths, self.labels))
+        random.shuffle(combined)
+        self.paths, self.labels = zip(*combined)
+
+        # Retrieve all
+        #self.paths[-1] = glob.glob(self.data_path+'/*/*/*.png')        
+    
+    def reset_task_to(self, scenario_n):
+        """ Reset the dataset to a new scenario"""
+        self.scenario_n = scenario_n
+        self._set_data_and_labels(scenario_n)
+
+    def _extract_labels_from_paths(self, paths):
+        labels = []
+        for path in paths:
+            # Corrects labels starting from 0 to 49
+            labels.append(int(path.split('/')[-2][1:])-1)
+        return labels
+    
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, index):
+
+        x = cv2.imread(self.paths[index])
+        x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)
+
+        y = self.labels[index]
+        if self.transform:
+            x = self.transform(x)
+
+        return x, y
 
 
 class TaskDataset(Dataset):
@@ -28,31 +83,74 @@ def get_dset_data(dataset, data_folder=OPT.DATA_FOLDER, train = True):
 
     if dataset == 'CIFAR10':
         data = CIFAR10(data_folder, train=train, download=True, transform=DSET_TRANSF[dataset])
+    elif dataset == 'Core50':
+        data = Core50Dataset(data_folder, scenario_number=-1)
     elif dataset == 'CIFAR100':
         data = CIFAR100(data_folder, train=train, download=True, transform=DSET_TRANSF[dataset])
     elif dataset == 'SVHN':
         split = 'train' if train else 'test'
         data = SVHN(data_folder, split=split, download=True, transform=DSET_TRANSF[dataset])
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f'Dataset not implemented, found {dataset}')
 
     return data
 
 
-def split_train_val(data, bsize, workers=8, split=0.9):
+def split_train_val(data, batch_size, split=0.9, return_subsets=False, shuffle=True, num_workers=8):
     """ Split a dataset in train and val. It returns a train and val tuple"""
     
     train_split = int(len(data) * split)
     train_sbs = Subset(data, range(train_split))
     val_sbs = Subset(data, range(train_split, len(data)))
-    train_loader = DataLoader(train_sbs, batch_size=bsize, shuffle=False, num_workers=workers)
-    val_loader = DataLoader(val_sbs, batch_size=bsize, shuffle=False, num_workers=workers)
+    train_loader = DataLoader(train_sbs, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+    val_loader = DataLoader(val_sbs, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+    if return_subsets:
+        return (train_sbs, val_sbs), (train_loader, val_loader)
+    else:
+        return train_loader, val_loader
 
-    return train_loader, val_loader
+
+def get_tasks(data, num_tasks, bsize, do_warmup=False, workers=8):
+    if do_warmup:
+        return split_data_in_tasks_with_warmup(data, num_tasks, bsize, workers)
+    else:
+        return split_data_in_tasks(data, num_tasks, bsize, workers)
 
 
 # [TODO] to fix the split quantity in OPT
-def prepare_tasks(data, num_tasks, bsize, workers=8):
+def split_data_in_tasks(data, num_tasks, bsize, workers=8):
+    """ Split a dataset in num_tasks tasks. It returns a list of tuples, each tuple is a train, val tuple"""
+    
+    # Select 90% to train and 10% to val
+    train_len = int((len(data)) * 0.9)
+    val_len =  len(data) - train_len
+
+    # Calculate the split for each task
+    length_of_train_task = train_len // num_tasks
+    length_of_val_task = val_len // num_tasks
+    
+    # Prepare loaders for each task
+    tasks = []
+    subsets = []
+    for i in range(num_tasks):
+        init, end = i*length_of_train_task, (i+1)*length_of_train_task
+        train_sbs = Subset(data, range(init, end))
+
+        init, end = train_len+(i*length_of_val_task), train_len+((i+1)*length_of_val_task)
+        val_sbs = Subset(data, range(init, end))
+        
+        train_loader = DataLoader(train_sbs, batch_size=bsize, shuffle=True, num_workers=workers)
+        val_loader = DataLoader(val_sbs, batch_size=bsize, shuffle=True, num_workers=workers)
+        tasks.append((train_loader, val_loader))
+        subsets.append((train_sbs, val_sbs))
+        
+    return tasks, subsets
+
+
+
+
+# [TODO] to fix the split quantity in OPT
+def split_data_in_tasks_with_warmup(data, num_tasks, bsize, workers=8):
     """ Split a dataset in a warmup task + a sequence of tasks. It selects half
     of the dataset to be used as a warmup dataset and then returns a number of
     continual tasks. Each task (both warmup and continual) are a train, val tuple
@@ -113,43 +211,24 @@ def prepare_tasks(data, num_tasks, bsize, workers=8):
     return (wrmp_task, n_wrmp_task, tasks, subsets)
 
 
+def gen_core50_tasks():
+    """ Generate a list of tasks for Core50 dataset """
+    task_id = [x for x in range(1,12)]
+    random.shuffle(task_id)
 
-if __name__ == "__main__":
+    tasks = []
+    val_dsets = []    
+    for i in task_id[:-1]:
+        dataset = Core50Dataset(OPT.DATA_FOLDER, scenario_n=i, transform=stats.DSET_TRANSF['Core50'])
+        (tr_sbs, val_sbs), (train, val) = split_train_val(dataset, batch_size=OPT.BATCH_SIZE, return_subsets=True)
+        tasks.append((train, val))
+        val_dsets.append(val_sbs)
 
-    # Prepare data
-    data = get_dset_data('CIFAR10', OPT.DATA_FOLDER, train=True)
-    train_loader, val_loader = split_train_val(data, bsize=1)
-    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = prepare_tasks(data, num_tasks=10, bsize=1)
-
-    # Print some info
-    print('Train loader len: {}'.format(len(train_loader)))
-    print('Val loader len: {}'.format(len(val_loader)))
-    print('First half train loader len: {}'.format(len(fh_train_loader)))
-    print('First half val loader len: {}'.format(len(fh_val_loader)))
-    print('Second half train loader len: {}'.format(len(sh_train_loader)))
-    print('Second half val loader len: {}'.format(len(sh_val_loader)))
-    print('Tasks len: {}'.format(len(tasks)))
-    print('Task 0 train loader len: {}'.format(len(tasks[0][0])))
-    print('Task 0 val loader len: {}'.format(len(tasks[0][1])))
-    print('Task 1 train loader len: {}'.format(len(tasks[1][0])))
-    print('Task 1 val loader len: {}'.format(len(tasks[1][1])))
+    # Append the last unseen scenario
+    val_dsets.append(Core50Dataset(OPT.DATA_FOLDER, scenario_n=task_id[-1], transform=stats.DSET_TRANSF['Core50']))
+    val_dset = ConcatDataset(val_dsets)
+    val_loader = DataLoader(val_dset, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=OPT.NUM_WORKERS)
     
-    # Prints the first 5 indices for each task (should be different)
-    for t in range(len(tasks)):
-        print('Task {} train indices: {}'.format(t, tasks[t][0].dataset.indices[:5]))
-        print('Task {} val indices: {}'.format(t, tasks[t][1].dataset.indices[:5]))
-
-    # Asserts the indices are correct (no overlap)
-    assert len(set(fh_train_loader.dataset.indices).intersection(sh_train_loader.dataset.indices)) == 0
-
-    # asserts the indices for each task are correct (no overlap)
-    for t in range(len(tasks)):
-        for t2 in range(len(tasks)):
-            if t != t2:
-                assert len(set(tasks[t][0].dataset.indices).intersection(tasks[t2][0].dataset.indices)) == 0
-                assert len(set(tasks[t][1].dataset.indices).intersection(tasks[t2][1].dataset.indices)) == 0
-    
+    return tasks, val_loader
 
 
-
-    
