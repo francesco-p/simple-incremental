@@ -62,7 +62,7 @@ class OPT:
     parser.add_argument('--cdd_iterations', type=int, default=1000, help='Buffer size of replay strategy')
 
     opts = parser.parse_args()
-
+    print(opts)
 
     # Folders
     PROJECT_FOLDER = opts.project_path
@@ -130,7 +130,7 @@ class OPT:
     #####################################
 
     #######CDD#######
-    CDD_ITERATIONS = opts.iterations
+    CDD_ITERATIONS = opts.cdd_iterations
 
     ######ICARL#######
     KEEP = 15
