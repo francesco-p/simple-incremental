@@ -79,8 +79,12 @@ def write_line_to_csv(data, name, append=False, log=True):
 
 def get_model(model_name, num_classes, pretrained):
 
+        
+
     if model_name == 'resnet18':
         model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
+        if OPT.FEATURES_ONLY:
+            model = timm.create_model(model_name, pretrained=pretrained,features_only=True, out_indices=[4], num_classes=num_classes)
     elif model_name == 'resnet34':
         model = timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
     elif model_name == 'dla46x_c':

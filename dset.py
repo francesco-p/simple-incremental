@@ -8,27 +8,47 @@ import random
 import cv2
 from torchvision import transforms
 import stats
+import numpy as np
+from tqdm import tqdm
 
 class Core50Dataset(Dataset):
     """ Scenario Dataset for Core50 it requires a scenario number  """
     
-    def __init__(self, data_path, scenario_n, transform=None):
-        self.data_path = data_path+'/core50_128x128/'
+    def __init__(self, data_path, scenario_n, preload=False, load_data_in_memory=True, transform=None):
+        self.data_path = data_path+'/core50_128x128'
         self.transform = transform
         self.scenario_n = scenario_n
-        self._set_data_and_labels()
+        self._set_data_and_targets()
+        
+        if preload:
+            self._preloaded_data()
+        else:
+            if load_data_in_memory:
+                self._load_data()
+            else:
+                raise NotImplementedError('we need to check this case...for icarl')
 
-    def _set_data_and_labels(self):
-        """ Retrieve all paths and labels and shuffle them"""
+    def _preloaded_data(self):
+        self.data = torch.load(self.data_path+f'_scenarios/core50_scenario_{self.scenario_n}')
+
+    def _load_data(self):
+        self.data = np.zeros((len(self.paths), 128, 128, 3)).astype(np.uint8)
+        for i, path in tqdm(enumerate(self.paths)):
+            x = cv2.imread(path).astype(np.uint8)
+            x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB).astype(np.uint8)
+            self.data[i] = x
+
+    def _set_data_and_targets(self):
+        """ Retrieve all paths and targets and shuffle them"""
 
         # Retrieve all paths of the specified shenario
         self.paths = glob.glob(self.data_path+'/'+f's{self.scenario_n}/*/*.png')
-        self.labels = self._extract_labels_from_paths(self.paths)
+        self.targets = self._extract_targets_from_paths(self.paths)
         
         # Shuffle the lists in unison
-        combined = list(zip(self.paths, self.labels))
+        combined = list(zip(self.paths, self.targets))
         random.shuffle(combined)
-        self.paths, self.labels = zip(*combined)
+        self.paths, self.targets = zip(*combined)
 
         # Retrieve all
         #self.paths[-1] = glob.glob(self.data_path+'/*/*/*.png')        
@@ -36,14 +56,14 @@ class Core50Dataset(Dataset):
     def reset_task_to(self, scenario_n):
         """ Reset the dataset to a new scenario"""
         self.scenario_n = scenario_n
-        self._set_data_and_labels(scenario_n)
+        self._set_data_and_targets(scenario_n)
 
-    def _extract_labels_from_paths(self, paths):
-        labels = []
+    def _extract_targets_from_paths(self, paths):
+        targets = []
         for path in paths:
-            # Corrects labels starting from 0 to 49
-            labels.append(int(path.split('/')[-2][1:])-1)
-        return labels
+            # Corrects targets starting from 0 to 49
+            targets.append(int(path.split('/')[-2][1:])-1)
+        return targets
     
     def __len__(self):
         return len(self.paths)
@@ -53,7 +73,7 @@ class Core50Dataset(Dataset):
         x = cv2.imread(self.paths[index])
         x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)
 
-        y = self.labels[index]
+        y = self.targets[index]
         if self.transform:
             x = self.transform(x)
 
@@ -228,7 +248,7 @@ def gen_core50_tasks():
     val_dsets.append(Core50Dataset(OPT.DATA_FOLDER, scenario_n=task_id[-1], transform=stats.DSET_TRANSF['Core50']))
     val_dset = ConcatDataset(val_dsets)
     val_loader = DataLoader(val_dset, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=OPT.NUM_WORKERS)
-    
+
     return tasks, val_loader
 
 

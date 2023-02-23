@@ -15,7 +15,7 @@ from torch.utils.data import Subset
 import torch.nn.functional as F
 import numpy as np
 import random
-from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
 from opt import OPT
 import copy
 import matplotlib.pyplot as plt
@@ -58,7 +58,7 @@ def main(seed):
     utils.set_seeds(seed)
 
     if OPT.TENSORBOARD:
-        writer = SummaryWriter()
+        writer = None#SummaryWriter()
     else:
         writer = None
 

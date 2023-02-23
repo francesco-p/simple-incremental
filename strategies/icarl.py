@@ -49,30 +49,32 @@ class ExamplarMemoryNI:
         data = self.P.view(-1, *self.P.shape[2:])
         return TensorDataset(data, labels)
 
-    def compute_mean_with_dloader(self, the_images, num_workers=8):
+    def compute_mean_with_dloader(self, dataloader, num_workers=8):
         """ Compute the mean of the images of a class 
         it would be easier to use tensor.mean() but it is not possible
         when you have a lot of images, therefore we use a dataloader
         """
         # Convert the tensor to a TensorDataset with dummy labels
-        dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False, num_workers=num_workers)
         normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
         # Compute the mean
-        mu = torch.zeros(self.emb_size).to(OPT.DEVICE)
+        mu = None 
         for x in dataloader:
             x = x.to(OPT.DEVICE)
             x = x.to(torch.float32)
             x = normalization(x)
-            # Compute the embeddings of the images
-            embeddings = check_output(self.phi(x))['fts']
-            mu += embeddings.sum(dim=0)
+            # Compute the embeddings of the images (selects last ftrs)
+            embeddings = self.phi(x)[-1]
+            if mu == None:
+                mu = embeddings.view(embeddings.shape[0], -1).sum(dim=0)
+            else:
+                mu += embeddings.view(embeddings.shape[0], -1).sum(dim=0)
         mu /= len(dataloader.dataset)   # len(dataloader.dataset) = the_images.shape[0]
 
         return mu
 
 
     def construct_examplar_set(self, data, labels):
-        """ Construct the examplar set for the first task """
+        """ Construct the examplar set for the task """
         
         # Get the images of the first class
         for i in range(0, OPT.NUM_CLASSES):
@@ -82,14 +84,15 @@ class ExamplarMemoryNI:
             self.update_examplars(the_images, i)
 
 
-    def compute_distances(self, the_images, the_class, k, mu):
+    def compute_distances(self, dataloader, the_class, k, mu):
         """ Compute the distances between the images and the mean"""
 
         normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
-        dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False, num_workers=OPT.NUM_WORKERS)
         mu = mu.unsqueeze(0)
-        examplars_mu = self.compute_mean_with_dloader(self.P[the_class, :k])
-        dist = torch.zeros((the_images.shape[0]))
+        #examplars_loader = DataLoader(self.P[the_class, :k], batch_size=OPT.BATCH_SIZE, shuffle=False)
+        #examplars_mu = self.compute_mean_with_dloader(examplars_loader)
+        examplars_mu = self.P[the_class, :k].mean(dim=0)
+        dist = torch.zeros((len(dataloader.dataset)))
 
         for i, x in enumerate(dataloader):
             x = x.to(OPT.DEVICE)
@@ -98,7 +101,8 @@ class ExamplarMemoryNI:
             start_idx = i * OPT.BATCH_SIZE
             end_idx = start_idx + OPT.BATCH_SIZE
             # Compute the embeddings of the images
-            embeddings = check_output(self.phi(x))['fts']
+            embeddings = self.phi(x)[-1]
+            embeddings = embeddings.view(embeddings.shape[0], -1)
             if k == 0:
                 dist[start_idx:end_idx] = torch.norm(mu - embeddings, dim=1)
             else:
@@ -111,9 +115,11 @@ class ExamplarMemoryNI:
 
         if the_images.shape[0] < self.m:
             raise ValueError(f"the_images.shape[0] = {the_images.shape[0]} < self.m = {self.m}")
-
+        
+        dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False)
+        
         # Real mean
-        mu = self.compute_mean_with_dloader(the_images)
+        mu = self.compute_mean_with_dloader(dataloader)
         
         # Create the examplar set
         for k in range(self.m):
@@ -121,7 +127,7 @@ class ExamplarMemoryNI:
             dist = torch.zeros((the_images.shape[0]))
 
             # Compute the distances
-            dist = self.compute_distances(the_images, the_class, k, mu)
+            dist = self.compute_distances(dataloader, the_class, k, mu)
                 
             # Find the image with the minimum distance
             idx = torch.argmin(dist, dim=0)
@@ -190,7 +196,8 @@ class iCaRL(Base):
         # Update the examplar set from subsa
         indices = train_loader.dataset.indices
         # trnsf = train_loader.dataset.dataset.transform
-        data = torch.tensor(train_loader.dataset.dataset.data[indices])
+        # if not core50 data instead of data_path
+        data = torch.tensor(train_loader.dataset.dataset.data[indices]) 
         # [TODO] WHY WE FLIP???????????????????????
         data = rearrange(data, 'b h w c -> b c h w')
         labels = torch.tensor(train_loader.dataset.dataset.targets)[indices]
