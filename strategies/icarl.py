@@ -11,6 +11,8 @@ from strategies.base import Base
 from utils import check_output
 from einops import rearrange
 import stats
+import matplotlib.pyplot as plt
+import torchvision
 
 class TensorDataset(Dataset):
     def __init__(self, x, y):
@@ -49,7 +51,7 @@ class ExamplarMemoryNI:
         data = self.P.view(-1, *self.P.shape[2:])
         return TensorDataset(data, labels)
 
-    def compute_mean_with_dloader(self, dataloader, num_workers=8):
+    def compute_mean_feat_with_dloader(self, dataloader, num_workers=8):
         """ Compute the mean of the images of a class 
         it would be easier to use tensor.mean() but it is not possible
         when you have a lot of images, therefore we use a dataloader
@@ -61,7 +63,7 @@ class ExamplarMemoryNI:
         for x in dataloader:
             x = x.to(OPT.DEVICE)
             x = x.to(torch.float32)
-            x = normalization(x)
+            #x = normalization(x)
             # Compute the embeddings of the images (selects last ftrs)
             embeddings = self.phi(x)[-1]
             if mu == None:
@@ -89,15 +91,26 @@ class ExamplarMemoryNI:
 
         normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
         mu = mu.unsqueeze(0)
+        
+        # this is a speedup hack to compute the examplars mean but it works
+        # for a small batch size
+
         #examplars_loader = DataLoader(self.P[the_class, :k], batch_size=OPT.BATCH_SIZE, shuffle=False)
-        #examplars_mu = self.compute_mean_with_dloader(examplars_loader)
-        examplars_mu = self.P[the_class, :k].mean(dim=0)
+        #examplars_mu = self.compute_mean_feat_with_dloader(examplars_loader)
+        if k != 0:
+            inp = self.P[the_class, :k].to('cuda')
+            examplars_mu = self.phi(inp)[-1].mean(dim=0)
+            examplars_mu = examplars_mu.view(-1).unsqueeze(0)
+            self.P[the_class, :k].to('cpu')
+        else:
+            examplars_mu = torch.zeros((self.emb_size)).to(OPT.DEVICE)
+
         dist = torch.zeros((len(dataloader.dataset)))
 
         for i, x in enumerate(dataloader):
             x = x.to(OPT.DEVICE)
             x = x.to(torch.float32)
-            x = normalization(x)
+            #x = normalization(x)
             start_idx = i * OPT.BATCH_SIZE
             end_idx = start_idx + OPT.BATCH_SIZE
             # Compute the embeddings of the images
@@ -119,7 +132,7 @@ class ExamplarMemoryNI:
         dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False)
         
         # Real mean
-        mu = self.compute_mean_with_dloader(dataloader)
+        mu = self.compute_mean_feat_with_dloader(dataloader)
         
         # Create the examplar set
         for k in range(self.m):
@@ -127,6 +140,7 @@ class ExamplarMemoryNI:
             dist = torch.zeros((the_images.shape[0]))
 
             # Compute the distances
+            dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False)
             dist = self.compute_distances(dataloader, the_class, k, mu)
                 
             # Find the image with the minimum distance
@@ -135,6 +149,17 @@ class ExamplarMemoryNI:
             self.P[the_class, k] = the_images[idx] # p_k
             # Remove the image from the dataset
             the_images = torch.cat((the_images[:idx], the_images[idx+1:]))
+
+    def visualize_examplars(self, save_path='/tmp/examplars.png'):
+        """ Visualize the examplars """
+        # Create a grid of the examplars
+        grid = torchvision.utils.make_grid(self.P.view(-1, *self.P.shape[2:]).to(torch.uint8), nrow=self.m)
+        # Plot the grid
+        plt.imshow(grid.permute(1, 2, 0))
+        if save_path:
+            plt.savefig(save_path)
+        #plt.show()
+        plt.close()
 
 
 
@@ -205,6 +230,7 @@ class iCaRL(Base):
         normalization_transform = train_loader.dataset.dataset.transform.transforms[-1]
         with torch.no_grad():
             self.replay_buffer.construct_examplar_set(data, labels)
+            self.replay_buffer.visualize_examplars()
 
         
         for epoch in range(0, OPT.EPOCHS_CONT):
