@@ -43,6 +43,8 @@ def MethodFactory(method, **kwargs):
         return st.OJKD(**kwargs)
     elif method == 'CDD':
         return st.CDD(**kwargs)
+    elif method == 'Soup':
+        return st.Soup(**kwargs)
     elif method == 'icarl':
         return st.iCaRL(**kwargs)
     elif method == 'boundary':
@@ -92,6 +94,7 @@ def main(seed):
             # we load fh model even for sh because we compare with CDD in the server
             model_sh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, at_seed, 'fh')
 
+
             fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_fh')
             sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, f'{OPT.DATASET}_{OPT.MODEL}_sh')
 
@@ -128,6 +131,7 @@ def main(seed):
     strategy = MethodFactory(OPT.METHOD_CONT, **OPT.ARGS_CONT)
     print(f"Continual learning with {OPT.METHOD_CONT} strategy")
     for task_id, (task_train_loader, task_val_loader) in enumerate(tasks):
+
         print(f"---Task {task_id}---")
         tag = f'{task_id}'
         strategy.train(task_train_loader, task_val_loader, writer, tag)
@@ -140,6 +144,7 @@ def main(seed):
                 loss, acc = strategy.eval(sh_val_loader, writer, 'sh')
 
         continual_metrics.append((loss, acc))
+
 
     
     print("###########################################")
@@ -158,10 +163,12 @@ def main(seed):
     row = ",".join(str(value) for value in data)
     utils.write_line_to_csv(row, strategy.get_csv_name(), OPT.APPEND)
 
+
     if OPT.TENSORBOARD:
         writer.close()
 
 
-if __name__ == "__main__":
-    
+if __name__ == "__main__":   
+
     main(OPT.SEED)
+

@@ -6,11 +6,13 @@ import random
 import numpy as np
 import timm
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from models.resnet32 import resnet32
 from models.resnet9 import ResNet9
 import pandas as pd
 import seaborn as sns
 import os
+
 
 def plot_csv(csv_files, dataset, methods, model):
 
@@ -37,10 +39,10 @@ def plot_csv(csv_files, dataset, methods, model):
         mean = all_results.mean(axis=0)
         std = all_results.std(axis=0)
 
+
         plt.plot(mean, label=method, color=colors[i], ls='-')
         ax.scatter(range(all_results.shape[1]), mean, color=colors[i])
         ax.fill_between(range(len(mean)), mean-std, mean+std, linewidth=1, color=colors[i], alpha=0.3)
-
         ax.set_xticks(range(num_tasks))
         ax.set_xticklabels(range(1, num_tasks+1))
         ax.set_xlabel('Tasks')
@@ -48,7 +50,7 @@ def plot_csv(csv_files, dataset, methods, model):
         ax.set_title(f'Performance on {dataset} dataset - model {model}')
         ax.legend()
     plt.show()
-
+    plt.savefig("plot.png")
 
 def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.DEVICE, chk_folder=OPT.CHK_FOLDER):
     """ Load model from checkpoint of a given epoch 
@@ -60,6 +62,20 @@ def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.DE
     
     model = model.to(device)
     return model
+
+def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.DEVICE, chk_folder=OPT.CHK_FOLDER):
+    """ Load models from checkpoint of a given epoch 
+    the epoch number is padded with zeros to 4 digits"""
+    
+    model =  get_model(model_name, num_classes, False)
+    name = f'{chk_folder}/{dataset}_{model_name}_{tag}_epoch{epoch:04}_seed{seed}.pt'
+    #print(f"NAME:\n{name}")
+    model.load_state_dict(torch.load(name))
+    
+    model = model.to(device)
+   
+    return model
+
 
 
 def write_line_to_csv(data, name, append=False, log=True):
@@ -103,15 +119,23 @@ def get_model(model_name, num_classes, pretrained):
 
 def set_seeds(seed):
     """ Set reproducibility seeds """
-    torch.manual_seed(seed)
+    # torch.manual_seed(seed)
+    # random.seed(seed)
+    # np.random.seed(seed)
+
     random.seed(seed)
     np.random.seed(seed)
+
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     # torch.backends.cudnn.enabled = False
 
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    #torch.backends.cudnn.enabled = False
 
 def check_output(out):
     """ Checks if output is a tuple and returns a dictionary"""
@@ -142,15 +166,15 @@ if __name__ == '__main__':
     out_dict = check_output(out)
     assert out_dict['y_hat'].shape == (10, 10)
 
-    # create fake csv file for testing
-    csv_file = 'csv/AWESOMEDSET_10tasks_Finetuning_resnet18.csv'
-    data = f'1000,'+','.join([str(random.random()) for _ in range(10)])+',0.5,0.6'
-    write_line_to_csv(data, csv_file, append=False)
+    # # create fake csv file for testing
+    csv_file_list = ['csv/CIFAR100_10tasks_CDD_dla46xc_epochs20.csv', 'csv/CIFAR100_10tasks_Finetuning_dla46xc_epochs20.csv']
+    # data = f'1000,'+','.join([str(random.random()) for _ in range(10)])+',0.5,0.6'
+    # write_line_to_csv(data, csv_file, append=False)
         
-    # append to csv file some fake data
-    for i in range(10):
-        data = f'{i},'+','.join([str(random.random()) for _ in range(10)])+',0.5,0.6'
-        write_line_to_csv(data, csv_file, append=True)   
+    # # append to csv file some fake data
+    # for i in range(10):
+    #     data = f'{i},'+','.join([str(random.random()) for _ in range(10)])+',0.5,0.6'
+    #     write_line_to_csv(data, csv_file, append=True)   
 
     # Test plot csv
-    plot_csv(csv_file)
+    plot_csv(csv_file_list)

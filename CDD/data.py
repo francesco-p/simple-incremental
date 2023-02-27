@@ -16,7 +16,7 @@ def get_images(images_all, indices_class, c, n): # get random n images from clas
 def get_all_images(images_all, indices_class, c): # get random n images from class c
     return images_all[indices_class[c]]
 
-def get_dataset(dataset, data_path, dst_train, load_train=True):
+def get_dataset(dataset, data_path, dst_train, dst_test = None, load_train=True):
     if dataset == 'MNIST':
         channel = 1
         im_size = (28, 28)
@@ -208,10 +208,11 @@ def get_dataset(dataset, data_path, dst_train, load_train=True):
 
     normalize = K.Normalize(mean=mean, std=std)
 
-    dst_test = dst_train
-    dataloader = torch.utils.data.DataLoader(dst_test, batch_size=64, shuffle=False, num_workers=0)
-
-
+    #dst_test = dst_train
+    if dst_test is not None:
+        dataloader = torch.utils.data.DataLoader(dst_test, batch_size=64, shuffle=False, num_workers=0)
+    else:
+        dataloader = None
     return channel, im_size, num_classes, normalize, images_all, indices_class, dataloader
 
 

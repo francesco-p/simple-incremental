@@ -216,6 +216,7 @@ def gen_core50_tasks():
     task_id = [x for x in range(1,12)]
     random.shuffle(task_id)
 
+
     tasks = []
     val_dsets = []    
     for i in task_id[:-1]:

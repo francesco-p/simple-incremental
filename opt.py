@@ -96,6 +96,7 @@ class OPT:
         os.mkdir(CSV_FOLDER)
 
     # Set multiple seeds for multiple runs
+
     SEED = opts.seed 
 
     # Datset parameters
@@ -126,12 +127,15 @@ class OPT:
     WD_FH = 1e-4
     EPOCHS_FH = 25
     ############ SH PARAMS ############
+
     LR_SH = 1e-3
     WD_SH = 1e-4
+
     EPOCHS_SH = 25
     ############ CONT PARAMS ############
     METHOD_CONT = opts.strategy
     # Approach params, if no params, leave empty dict
+
     
     #ARGS_CONT = {'original_impl':True}
     if METHOD_CONT == 'surgicalft':
@@ -148,6 +152,7 @@ class OPT:
     #####################################
 
     #######CDD#######
+
     CDD_ITERATIONS = opts.cdd_iterations
 
     ######ICARL#######
@@ -157,7 +162,6 @@ class OPT:
     IMG_SHAPE = DSET_IMG_SHAPE[opts.dataset]
     MEMORY_SIZE = opts.buffer_size
     EMB_SIZE = 64 # 64 for resnet32
-
 
 
     

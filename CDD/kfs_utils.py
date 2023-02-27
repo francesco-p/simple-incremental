@@ -12,7 +12,7 @@ import torch.distributed as dist
 from torchvision import transforms
 from torch.optim.lr_scheduler import LambdaLR
 
-
+from opt import OPT
 from data import TensorDataset, DiffAugment
 
 def default_args(args):
@@ -98,7 +98,7 @@ def evaluate(args, net, image_syn, label_syn, testloader, normalize):
         num_workers=0
     )
 
-    optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.Adam(net.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[2 * args.epoch // 3, 5 * args.epoch // 6], gamma=0.2)
 

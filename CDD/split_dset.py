@@ -30,27 +30,8 @@ from trainer import Trainer
 import save_features
 import pretrain
 import argparse
-import main_single
+import CDD.main_single_temp as main_single_temp
 from args import make_args
-
-def MethodFactory(method, **kwargs):
-    """Factory method for creating a strategy object."""
-
-    if method == 'Finetuning':
-        return st.Finetuning(**kwargs)
-    elif method == 'Ema':
-        return st.Ema(**kwargs)
-    elif method == 'LessForg':
-        return st.LessForg(**kwargs)
-    elif method == 'SurgicalFT':
-        return st.SurgicalFT(**kwargs)
-    elif method == 'FinetuningFC':
-        return st.FinetuningFC(**kwargs)
-    elif method == 'OJKD':
-        return st.OJKD(**kwargs)
-    else:
-        raise NotImplementedError(f"Unknown method {method}")
-
 
 def main(n_run, seed):
 
@@ -62,15 +43,20 @@ def main(n_run, seed):
     test_data = dset.get_dset_data(OPT.DATASET, OPT.DATA_FOLDER, train=False)
     _, small_test_loader = dset.split_train_val(test_data, OPT.BATCH_SIZE)
 
-    loss_fn = nn.CrossEntropyLoss()
-  
-    for task_id, (task_train_sbs, task_val_sbs) in enumerate(subsets):
-        args = make_args(task_id)
-        
+    #loss_fn = nn.CrossEntropyLoss()
+    #args = make_args("0000")
+    #save_features.main(args, fh_train_loader.dataset)
+    #pretrain.main(args, fh_train_loader.dataset)
+    #main_single_temp.main(args, fh_train_loader.dataset, fh_val_loader.dataset)
+    for task_id, (task_train_sbs, task_val_sbs) in enumerate(subsets[0:]):
+        t = task_id + 0
+        print(f"---Beginning {t}---")
+        args = make_args(t)
         #save_features.main(args, task_train_sbs)
         pretrain.main(args, task_train_sbs)
-        main_single.main(args, task_val_sbs)
-        print(f"---{task_id}---")
+        main_single_temp.main(args, task_train_sbs, task_val_sbs)
+        print(f"---Ending {t}---")
+        
 
 
 
@@ -78,10 +64,4 @@ if __name__ == "__main__":
     
     # Set seeds for multiple runs
     for n, seed in enumerate(OPT.SEEDS):
-        if n > 0:
-            OPT.ALL = False
-            OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
-        else:
-            OPT.LOAD_FISRT_SECOND_HALF_MODELS = False
-
         main(n, seed)
