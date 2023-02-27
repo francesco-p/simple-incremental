@@ -9,3 +9,5 @@ CDD/features_final
 CDD/results
 CDD/pretrained_ae
 *.py~
+venv/
+tests/

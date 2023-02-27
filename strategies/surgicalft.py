@@ -1,4 +1,6 @@
+
 from opt import OPT
+import os
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -131,3 +133,7 @@ class SurgicalFT(Base):
         optimizer = optim.Adam(tr_params,lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
 
         return optimizer
+    
+
+    def get_csv_name(self):
+        return os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{self.name.replace('_','')}{self.layer}_{OPT.MODEL.replace('_','')}.csv")

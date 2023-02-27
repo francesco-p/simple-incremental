@@ -67,6 +67,7 @@ class CDD(Base):
             )
 
         if int(tag)>0:
+
             syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_10_10/task_{int(tag) - 1}/res.pth")
             indices = torch.randperm(self.buffer_labels.shape[0])[:OPT.BUFFER_SIZE]
             self.buffer_images = self.buffer_images[indices].to(OPT.DEVICE)
@@ -101,6 +102,7 @@ class CDD(Base):
             )
         print("len dataloader: ", len(train_loader))
         print("shape buffer: ", self.buffer_images.shape)
+
         for epoch in range(0, OPT.EPOCHS_CONT):
             print(f'    EPOCH {epoch} ')
 

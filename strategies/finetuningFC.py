@@ -5,6 +5,7 @@ import torch.nn as nn
 import utils
 from torch import optim
 from strategies.base import Base
+import os
 
 class FinetuningFC(Base):
 
@@ -113,3 +114,6 @@ class FinetuningFC(Base):
         if OPT.TENSORBOARD:
             writer.add_scalar(f'{tag}/loss/{session}', loss, epoch)
             writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
+
+    def get_csv_name(self):
+        return os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{self.name.replace('_','')}_{OPT.MODEL.replace('_','')}.csv")

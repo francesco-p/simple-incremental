@@ -9,3 +9,7 @@ from .ojkd import OJKD
 from .surgicalft import SurgicalFT
 from .CDD import CDD
 from .Soup import Soup
+from .icarl import iCaRL
+from .boundary import Boundary
+from .replay import Replay
+
