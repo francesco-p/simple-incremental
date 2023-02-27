@@ -20,7 +20,7 @@ from opt import OPT
 def main(args, dset_train, dset_test):
     args.device = torch.device(f"cuda:{args.gpu_id}")
     args.ae_path = f'CDD/pretrained_ae/{args.dataset}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_default.pth'
-
+    #args.ae_path = f'CDD/pretrained_ae/CIFAR100_1_10_10_default.pth'
     if args.exp_name is None:
         args.exp_name = f'{args.model}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}'
         if args.linear_schedule:

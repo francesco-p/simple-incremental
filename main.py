@@ -43,6 +43,8 @@ def MethodFactory(method, **kwargs):
         return st.OJKD(**kwargs)
     elif method == 'CDD':
         return st.CDD(**kwargs)
+    elif method == 'Soup':
+        return st.Soup(**kwargs)
     else:
         raise NotImplementedError(f"Unknown method {method}")
 
@@ -81,10 +83,12 @@ def main(n_run, seed):
         print("###########################################")
         print("######### MODELS ALREADY TRAINED ##########")
         # [TODO] load models with dynamic epoch number (not hardcoded)
-        at_epoch=13
-        model_fh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, tag = "fh")
-        at_epoch = 9
-        model_sh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, tag = "sh")
+        at_epoch=24
+        at_seed=0
+        model_fh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, 0, tag = "fh")
+        at_epoch = 24
+        at_seed = 0
+        model_sh = utils.load_model(OPT.MODEL, OPT.DATASET, OPT.NUM_CLASSES, at_epoch, 0, tag = "sh")
         fh = Trainer(model_fh, OPT.DEVICE, OPT.NUM_CLASSES, writer, seed, f'{OPT.DATASET}_{OPT.MODEL}_fh')
         sh = Trainer(model_sh, OPT.DEVICE, OPT.NUM_CLASSES, writer, seed, f'{OPT.DATASET}_{OPT.MODEL}_sh')
 
@@ -118,7 +122,7 @@ def main(n_run, seed):
        print(f"---Task {task_id}---")
        tag = f'{task_id}'
        strategy.train(task_train_loader, task_val_loader, writer, tag)
-       sh_loss, sh_acc = strategy.eval(sh_val_loader, writer, 'sh')
+       sh_loss, sh_acc = strategy.eval(sh_val_loader, writer, 'sh', strategy.model)
        continual_metrics.append((sh_loss, sh_acc))
            
        
@@ -140,7 +144,7 @@ def main(n_run, seed):
     row = ",".join(str(value) for value in data)
 
     print("Row: ", row)
-    fname = os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{strategy.name.replace('_','')}_{OPT.MODEL.replace('_','')}_epochs{OPT.EPOCHS_CONT}.csv")
+    fname = strategy.get_name()#os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{strategy.name.replace('_','')}_{OPT.MODEL.replace('_','')}_epochs{OPT.EPOCHS_CONT}.csv")
     print(f"File name: {fname}")
     utils.write_line_to_csv(row, fname, append)
 
@@ -156,8 +160,6 @@ if __name__ == "__main__":
             OPT.ALL = False
             OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
         else:
-            print('>>>>>>>>>>>>>>Load models ALWAYS disabled<>>>><<<<<<<<<<<<') 
-            #OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
             OPT.LOAD_FISRT_SECOND_HALF_MODELS = True
 
         main(n, seed)

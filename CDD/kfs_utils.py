@@ -12,7 +12,7 @@ import torch.distributed as dist
 from torchvision import transforms
 from torch.optim.lr_scheduler import LambdaLR
 
-import opt as OPT
+from opt import OPT
 from data import TensorDataset, DiffAugment
 
 def default_args(args):

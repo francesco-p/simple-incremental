@@ -6,7 +6,7 @@ from opt import OPT
 class Trainer:
     """Trainer class for training a model on a dataset."""
 
-    def __init__(self, model, device, num_classes, writer, tag, seed, checkpoint_path=OPT.CHK_FOLDER):
+    def __init__(self, model, device, num_classes, writer, seed, tag, checkpoint_path=OPT.CHK_FOLDER):
         self.model = model
         self.device = device
         self.num_classes = num_classes
