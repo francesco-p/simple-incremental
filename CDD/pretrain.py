@@ -7,12 +7,14 @@ from data import get_dataset, TensorDataset
 from generator import SyntheticImageGenerator
 
 import os
+from opt import OPT
 def main(args, dset):
     ''' data set '''
-    channel, im_size, num_classes, normalize, images_all, indices_class, testloader = get_dataset(args.dataset, args.data_path, dset)
+    channel, im_size, num_classes, normalize, images_all, indices_class, testloader = get_dataset(OPT.DATASET, args.data_path, dset)
 
     #import ipdb; ipdb.set_trace()
     ''' initialize '''
+    print(OPT.DATASET, im_size)
     generator = SyntheticImageGenerator(
             num_classes, im_size, args.num_seed_vec, args.num_decoder, args.hdims,
             args.kernel_size, args.stride, args.padding).to(args.device)
@@ -41,6 +43,6 @@ def main(args, dset):
             print(f'pretrain step {i}: {loss.item()}')
 
     os.makedirs("./pretrained_ae/", exist_ok=True)
-    save_name = f'CDD/pretrained_ae/{args.dataset}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_default.pth'
+    save_name = f'CDD/pretrained_ae/{OPT.DATASET}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_default.pth'
     torch.save(generator.state_dict(), save_name)
 

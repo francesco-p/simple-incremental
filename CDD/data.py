@@ -25,6 +25,13 @@ def get_dataset(dataset, data_path, dst_train, dst_test = None, load_train=True)
         std = [0.3081]
         transform = transforms.ToTensor()
 
+    elif dataset == 'Core50':
+        channel = 3
+        im_size = (128, 128)
+        num_classes = 50
+        mean = [0.5]
+        std = [0.5]
+        transform = transforms.ToTensor()
 
     elif dataset == 'FashionMNIST':
         channel = 1

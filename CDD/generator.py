@@ -108,8 +108,8 @@ class SyntheticImageGenerator(nn.Module):
         encoders_list = []
         decoders_list = []
         for _ in range(num_decoder):
-            #encoders_list.append(Encoder(hdims))
-            encoders_list.append(TimmEnc())
+            encoders_list.append(Encoder(hdims))
+            #encoders_list.append(TimmEnc())
             decoders_list.append(Decoder(hdims, kernel_size, stride, padding))
         self.encoders = nn.ModuleList(encoders_list)
         self.decoders = nn.ModuleList(decoders_list)

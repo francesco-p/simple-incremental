@@ -13,7 +13,7 @@ def make_args(task_id):
 
     #general    
     parser.add_argument('--model', type=str, default='ConvNet', help='model')
-    parser.add_argument('--dataset', type=str, default='CIFAR10', help='dataset')
+    parser.add_argument('--dataset', type=str, default=OPT.DATASET, help='dataset')
     parser.add_argument('--data_path', type=str, default='/home/leonardolabs/data', help='dataset path')
     parser.add_argument('--iteration', type=int, default=1, help='training iterations')
     parser.add_argument('--start_iteration', type=int, default=0, help='training iterations')
@@ -26,7 +26,7 @@ def make_args(task_id):
     parser.add_argument('--no_init', action = "store_true")
 
     # hparms for ae
-    parser.add_argument('--ae_iteration', type=int, default=4000)
+    parser.add_argument('--ae_iteration', type=int, default=1)
     parser.add_argument('--lr_ae', type=float, default=1e-2)
     parser.add_argument('--ipc', type=int, default=1)
     parser.add_argument('--hdims', type=list, default=[6,9,12])
@@ -37,7 +37,6 @@ def make_args(task_id):
     parser.add_argument('--stride', type=int, default=2)
     parser.add_argument('--kernel_size', type=int, default=2)
     parser.add_argument('--padding', type=int, default=0)
-
 
     # data
     parser.add_argument('--feature_path', type=str, default='CDD/features_final')

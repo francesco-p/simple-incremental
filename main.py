@@ -69,7 +69,7 @@ def main(seed):
 
     if OPT.DATASET == 'Core50':
         # Core50 does not support warmup
-        tasks, validation = dset.gen_core50_tasks()
+        tasks, validation, _ = dset.gen_core50_tasks()
     else:
         train_data = dset.get_dset_data(OPT.DATASET, train=True)
         test_data = dset.get_dset_data(OPT.DATASET, train=False)

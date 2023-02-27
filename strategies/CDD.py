@@ -53,42 +53,31 @@ class CDD(Base):
         if scheduler:
             sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.EPOCHS_CONT, steps_per_epoch=len(train_loader))
 
-        if int(tag) == 0:
-            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_10_10/task_0000/res.pth")
-            self.buffer_images = syn_images_and_labels["data"][0][0][:OPT.BUFFER_SIZE]
-            self.buffer_labels = F.one_hot(syn_images_and_labels["data"][0][1], num_classes = OPT.NUM_CLASSES)[:OPT.BUFFER_SIZE]
-            replay_buffer_dset = TensorDataset(self.buffer_images, self.buffer_labels)
-            train_dataset = TensorDataset_one_hot(train_loader.dataset)
 
-            train_loader = DataLoader(
-                ConcatDataset((replay_buffer_dset, train_dataset)),
-                batch_size=OPT.BATCH_SIZE,
-                shuffle=True # important to shuffle the data
-            )
 
         if int(tag)>0:
 
             syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_10_10/task_{int(tag) - 1}/res.pth")
-            indices = torch.randperm(self.buffer_labels.shape[0])[:OPT.BUFFER_SIZE]
-            self.buffer_images = self.buffer_images[indices].to(OPT.DEVICE)
-            self.buffer_labels = self.buffer_labels[indices].to(OPT.DEVICE)
-
-            indices = torch.randperm(syn_images_and_labels["data"][0][1].shape[0])[:OPT.BUFFER_SIZE]
             
-            #normalize keeping count of how many task have been avaraged so far
-            self.buffer_images *= torch.tensor(float(tag) - 1.).long()
-            self.buffer_images +=  syn_images_and_labels["data"][0][0].to(OPT.DEVICE)[indices]
-            self.buffer_images /= torch.tensor(float(tag)).long()
-
-            self.buffer_labels *= torch.tensor(float(tag) - 1.).long()
-            self.buffer_labels = self.buffer_labels + F.one_hot(syn_images_and_labels["data"][0][1][indices], num_classes = OPT.NUM_CLASSES).to(torch.float32).to(OPT.DEVICE)
-            self.buffer_labels /= torch.tensor(float(tag)).long()
-
-            #self.buffer_images =  torch.cat((self.buffer_images, syn_images_and_labels["data"][0][0]), dim = 0)
-            #self.buffer_labels =  torch.cat((self.buffer_labels, syn_images_and_labels["data"][0][1]), dim = 0)
+            if int(tag)==1:
+                self.buffer_images = syn_images_and_labels["data"][0][0][:OPT.BUFFER_SIZE]
+                self.buffer_labels = F.one_hot(syn_images_and_labels["data"][0][1], num_classes = OPT.NUM_CLASSES)[:OPT.BUFFER_SIZE]
             
+            if int(tag)>1:
+                indices = torch.randperm(self.buffer_labels.shape[0])[:OPT.BUFFER_SIZE]
+                self.buffer_images = self.buffer_images[indices].to(OPT.DEVICE)
+                self.buffer_labels = self.buffer_labels[indices].to(OPT.DEVICE)
 
-            #self.permuted_indices = torch.randperm(self.buffer_labels.shape[0])
+                indices = torch.randperm(syn_images_and_labels["data"][0][1].shape[0])[:OPT.BUFFER_SIZE]
+                
+                #normalize keeping count of how many task have been avaraged so far
+                self.buffer_images *= torch.tensor(float(tag) - 1.).long()
+                self.buffer_images +=  syn_images_and_labels["data"][0][0].to(OPT.DEVICE)[indices]
+                self.buffer_images /= torch.tensor(float(tag)).long()
+
+                self.buffer_labels *= torch.tensor(float(tag) - 1.).long()
+                self.buffer_labels = self.buffer_labels + F.one_hot(syn_images_and_labels["data"][0][1][indices], num_classes = OPT.NUM_CLASSES).to(torch.float32).to(OPT.DEVICE)
+                self.buffer_labels /= torch.tensor(float(tag)).long()
 
             replay_buffer_dset = TensorDataset(self.buffer_images, self.buffer_labels)
 

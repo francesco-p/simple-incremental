@@ -27,7 +27,9 @@ class ConvNet(nn.Module):
     def embed(self, x):
         out = self.features(x)
         out = out.view(out.size(0), -1)
+        
         return out
+    
 
     def _get_activation(self, net_act):
         if net_act == 'sigmoid':

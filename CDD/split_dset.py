@@ -30,38 +30,38 @@ from trainer import Trainer
 import save_features
 import pretrain
 import argparse
-import CDD.main_single_temp as main_single_temp
+import CDD.main_single as main_single
 from args import make_args
 
-def main(n_run, seed):
-
+def main(seed):
+    utils.set_seeds(seed)
     print("###########################################")
     print("########### DATASET PREPARATION ###########")
-    train_data = dset.get_dset_data(OPT.DATASET, OPT.DATA_FOLDER, train=True)
-    (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = dset.prepare_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
 
-    test_data = dset.get_dset_data(OPT.DATASET, OPT.DATA_FOLDER, train=False)
-    _, small_test_loader = dset.split_train_val(test_data, OPT.BATCH_SIZE)
+    if OPT.DATASET == 'Core50':
+        # Core50 does not support warmup
+        tasks, validation, subsets = dset.gen_core50_tasks()
+    else:
+        train_data = dset.get_dset_data(OPT.DATASET, train=True)
+        test_data = dset.get_dset_data(OPT.DATASET, train=False)
+        #_, small_test_loader = dset.split_train_val(test_data, OPT.BATCH_SIZE)
+        
+        if OPT.DO_WARMUP:
+            (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = dset.get_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
+        else:
+            tasks, subsets = dset.get_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
 
-    #loss_fn = nn.CrossEntropyLoss()
-    #args = make_args("0000")
-    #save_features.main(args, fh_train_loader.dataset)
-    #pretrain.main(args, fh_train_loader.dataset)
-    #main_single_temp.main(args, fh_train_loader.dataset, fh_val_loader.dataset)
+ 
     for task_id, (task_train_sbs, task_val_sbs) in enumerate(subsets[0:]):
         t = task_id + 0
         print(f"---Beginning {t}---")
         args = make_args(t)
-        #save_features.main(args, task_train_sbs)
         pretrain.main(args, task_train_sbs)
-        main_single_temp.main(args, task_train_sbs, task_val_sbs)
+        main_single.main(args, task_train_sbs, task_val_sbs)
         print(f"---Ending {t}---")
         
 
 
 
 if __name__ == "__main__":
-    
-    # Set seeds for multiple runs
-    for n, seed in enumerate(OPT.SEEDS):
-        main(n, seed)
+   main(OPT.SEED)

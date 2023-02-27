@@ -218,18 +218,21 @@ def gen_core50_tasks():
 
 
     tasks = []
-    val_dsets = []    
+    val_dsets = [] 
+    subsets = []
+
     for i in task_id[:-1]:
         dataset = Core50Dataset(OPT.DATA_FOLDER, scenario_n=i, transform=stats.DSET_TRANSF['Core50'])
         (tr_sbs, val_sbs), (train, val) = split_train_val(dataset, batch_size=OPT.BATCH_SIZE, return_subsets=True)
         tasks.append((train, val))
         val_dsets.append(val_sbs)
+        subsets.append((tr_sbs, val_sbs))
+
 
     # Append the last unseen scenario
     val_dsets.append(Core50Dataset(OPT.DATA_FOLDER, scenario_n=task_id[-1], transform=stats.DSET_TRANSF['Core50']))
     val_dset = ConcatDataset(val_dsets)
     val_loader = DataLoader(val_dset, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=OPT.NUM_WORKERS)
     
-    return tasks, val_loader
-
+    return tasks, val_loader, subsets
 
