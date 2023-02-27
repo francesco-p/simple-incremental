@@ -252,3 +252,10 @@ def gen_core50_tasks():
     return tasks, val_loader
 
 
+def create_core50_scenarios_tensors():
+    """ Create a tensor for each scenario in Core50 dataset """
+    scenarios = []
+    for i in range(1, 12):
+        dataset = Core50Dataset(OPT.DATA_FOLDER, scenario_n=i, transform=stats.DSET_TRANSF['Core50'])
+        scenarios.append(torch.stack([x[0] for x in dataset]))
+    return scenarios
