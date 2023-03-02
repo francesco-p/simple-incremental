@@ -25,9 +25,9 @@ class ConvNet(nn.Module):
         return out
 
     def embed(self, x):
+        
         out = self.features(x)
         out = out.view(out.size(0), -1)
-        
         return out
     
 

@@ -29,7 +29,7 @@ class OPT:
 
     parser.add_argument('--data_path', type=str, default=f'{os.environ["DATASET_ROOT"]}', help='Path where data is stored')
     parser.add_argument('--project_path', type=str, default=f'{os.environ["NI_PROJECT"]}', help='Path of current folder')
-    parser.add_argument('--device', type=str, default='1', help='Gpu to use, -1 for cpu')
+    parser.add_argument('--device', type=str, default='0', help='Gpu to use, -1 for cpu')
     
     #####################
     ###### EXPERIM ######

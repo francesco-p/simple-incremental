@@ -19,19 +19,19 @@ def make_args(task_id):
     parser.add_argument('--start_iteration', type=int, default=0, help='training iterations')
     parser.add_argument('--half', action='store_true')
     parser.add_argument('--batch', type=int, default=-1)
-    parser.add_argument('--gpu_id', type=int, default=1)
+    parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--RP_hid', type=int, default=128)
     parser.add_argument('--name_folder', type=str, default="")
     parser.add_argument('--save_folder', type=str, default="CDD/features_final")
     parser.add_argument('--no_init', action = "store_true")
 
     # hparms for ae
-    parser.add_argument('--ae_iteration', type=int, default=1)
+    parser.add_argument('--ae_iteration', type=int, default=1000)
     parser.add_argument('--lr_ae', type=float, default=1e-2)
     parser.add_argument('--ipc', type=int, default=1)
     parser.add_argument('--hdims', type=list, default=[6,9,12])
-    parser.add_argument('--num_seed_vec', type=int, default=13)
-    parser.add_argument('--num_decoder', type=int, default=8)
+    parser.add_argument('--num_seed_vec', type=int, default=5)
+    parser.add_argument('--num_decoder', type=int, default=4)
 
     # Adds custom params
     parser.add_argument('--stride', type=int, default=2)

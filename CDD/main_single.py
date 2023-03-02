@@ -17,6 +17,7 @@ from data import get_dataset, DiffAugment, ParamDiffAug, get_all_images, TensorD
 import timm
 from opt import OPT
 
+
 def main(args, dset_train, dset_test):
     args.device = torch.device(f"cuda:{args.gpu_id}")
     args.ae_path = f'CDD/pretrained_ae/{args.dataset}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_default.pth'
@@ -35,7 +36,7 @@ def main(args, dset_train, dset_test):
 
     ''' data set '''
     channel, im_size, num_classes, normalize, images_all, indices_class, testloader = get_dataset(args.dataset, args.data_path, dset_train, dset_test)
-
+    
     ''' model eval pool'''
     if args.model_eval_pool is None:
         args.model_eval_pool = [args.model]
@@ -47,7 +48,7 @@ def main(args, dset_train, dset_test):
     data_save = []
 
     ''' save path '''
-    save_path = f'{args.save_path}/{args.dataset}/{args.exp_name}/task{args.name_folder}'
+    save_path = f'{args.save_path}/{args.dataset}_{OPT.SEED}/{args.exp_name}/task{args.name_folder}'
     os.makedirs(save_path, exist_ok=True)
 
     ''' initialize '''
@@ -82,13 +83,16 @@ def main(args, dset_train, dset_test):
         #print(f"iteration n {it}")
         net = get_model(args, args.model, channel, num_classes, im_size).to(f"cuda:{args.gpu_id}") # get a random model
         net = net.to(f"cuda:{args.gpu_id}")
-        net.train()
+        net.eval()
         for param in list(net.parameters()):
             param.requires_grad = False
+
         if args.model == "efficientnet":
             embed = timm.create_model('efficientnet_b0', num_classes = 0, pretrained = False).to(f"cuda:{args.gpu_id}")
         elif args.model == "dla46x_c":
             embed = timm.create_model('dla46x_c', num_classes = 0, pretrained = False).to(f"cuda:{args.gpu_id}")
+            for param in list(embed.parameters()):
+                param.requires_grad = False
         else:
             embed = net.embed        
 
@@ -98,23 +102,28 @@ def main(args, dset_train, dset_test):
             del net.fc
 
         ''' update synthetic data '''
-        loss = 0.0
 
         #print("A")
+        n_step = 1
+        #for index in range(n_step):
+        loss = 0.0
         for c in range(num_classes):
             seed = int(time.time() * 1000) % 100000
+        
             all_img_real = get_all_images(images_all, indices_class, c)
+            step_size = len(all_img_real)//n_step
+            #all_img_real = all_img_real[index*step_size : (index+1)*step_size]
             all_img_real = DiffAugment(normalize(all_img_real), args.dsa_strategy, seed=seed, param=args.dsa_param)
             all_img_real = all_img_real.to(f"cuda:{args.gpu_id}")
-            
+            #all_img_real = torch.rand(3,3,128,128).to(f"cuda:{args.gpu_id}")
             output_real_mean = embed(all_img_real).mean(dim=0)
-
+            
             # syn
             img_syn = generator.get_sample(c)[0]
             img_syn = DiffAugment(normalize(img_syn), args.dsa_strategy, seed=seed, param=args.dsa_param)
-            
+            #img_syn = torch.rand(3,3,128,128).to(f"cuda:{args.gpu_id}")
             output_syn_mean = torch.mean(embed(img_syn), dim=0)
-
+        
             # compute loss
             loss += torch.sum((output_real_mean - output_syn_mean)**2)
         #print("B")

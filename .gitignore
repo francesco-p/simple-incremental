@@ -11,3 +11,4 @@ CDD/pretrained_ae
 *.py~
 venv/
 tests/
+\#*\#
