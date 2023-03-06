@@ -9,6 +9,50 @@ import cv2
 from torchvision import transforms
 import stats
 
+class AllCore50Dataset(Dataset):
+    """ Scenario Dataset for Core50 it requires a scenario number  """
+    
+    def __init__(self, data_path, scenario_n, transform=None):
+        self.data_path = data_path+'/core50_128x128/'
+        self.transform = transform
+        self.scenario_n = scenario_n
+        self._set_data_and_labels()
+
+    def _set_data_and_labels(self):
+        """ Retrieve all paths and labels and shuffle them"""
+
+        # Retrieve all paths of the specified shenario
+        self.paths = glob.glob(self.data_path+'/*/*/*.png')        
+        self.labels = self._extract_labels_from_paths(self.paths)
+    
+    def reset_task_to(self, scenario_n):
+        """ Reset the dataset to a new scenario"""
+        self.scenario_n = scenario_n
+        self._set_data_and_labels(scenario_n)
+
+    def _extract_labels_from_paths(self, paths):
+        labels = []
+        for path in paths:
+            # Corrects labels starting from 0 to 49
+            labels.append(int(path.split('/')[-2][1:])-1)
+        return labels
+    
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, index):
+
+        x = cv2.imread(self.paths[index])
+        x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)
+
+        y = self.labels[index]
+        if self.transform:
+            x = self.transform(x)
+
+        return x, y
+
+
+
 class Core50Dataset(Dataset):
     """ Scenario Dataset for Core50 it requires a scenario number  """
     
@@ -211,8 +255,15 @@ def split_data_in_tasks_with_warmup(data, num_tasks, bsize, workers=8):
     return (wrmp_task, n_wrmp_task, tasks, subsets)
 
 
+def gen_all_core50_tasks():
+    """Generate task benchmark for core50 without splitting into scenarios"""
+    dataset = AllCore50Dataset(OPT.DATA_FOLDER, scenario_n=-1, transform=stats.DSET_TRANSF['Core50'])
+    return split_data_in_tasks(dataset, 11, OPT.BATCH_SIZE, OPT.NUM_WORKERS)
+
+
 def gen_core50_tasks():
     """ Generate a list of tasks for Core50 dataset """
+    
     task_id = [x for x in range(1,12)]
     random.shuffle(task_id)
 
@@ -235,4 +286,3 @@ def gen_core50_tasks():
     val_loader = DataLoader(val_dset, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=OPT.NUM_WORKERS)
     
     return tasks, val_loader, subsets
-

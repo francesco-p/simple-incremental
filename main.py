@@ -24,6 +24,7 @@ from models.resnet32 import resnet32
 import dset
 from trainer import Trainer
 import os
+import seaborn
 
 
 def MethodFactory(method, **kwargs):
@@ -68,8 +69,11 @@ def main(seed):
     print("########### DATASET PREPARATION ###########")
 
     if OPT.DATASET == 'Core50':
-        # Core50 does not support warmup
-        tasks, validation, _ = dset.gen_core50_tasks()
+        if OPT.SPLIT_CORE:
+            tasks, validation, _ = dset.gen_core50_tasks()
+        else:
+            tasks, _ = dset.gen_all_core50_tasks()
+
     else:
         train_data = dset.get_dset_data(OPT.DATASET, train=True)
         test_data = dset.get_dset_data(OPT.DATASET, train=False)
@@ -130,6 +134,11 @@ def main(seed):
     OPT.ARGS_CONT['model'] = model_c
     strategy = MethodFactory(OPT.METHOD_CONT, **OPT.ARGS_CONT)
     print(f"Continual learning with {OPT.METHOD_CONT} strategy")
+    if OPT.DATASET == 'Core50' and OPT.SPLIT_CORE:
+        matrix = torch.zeros((10, 11))
+    else:
+        matrix = torch.zeros((OPT.NUM_TASKS, OPT.NUM_TASKS)) ### not safe
+         
     for task_id, (task_train_loader, task_val_loader) in enumerate(tasks):
 
         print(f"---Task {task_id}---")
@@ -139,11 +148,23 @@ def main(seed):
             loss, acc = strategy.eval(sh_val_loader, writer, 'sh')
         else:
             if OPT.DATASET == 'Core50':
-                loss, acc = strategy.eval(validation, writer, 'sh')
+                for eval_task_id , (eval_task_train_loader, eval_task_val_loader) in enumerate(tasks):
+                    loss, acc = strategy.eval(eval_task_val_loader, None, 'sh')
+                    matrix[task_id, eval_task_id] = acc
+                
+                if OPT.SPLIT_CORE:
+                    matrix[task_id, -1] = 0.
+                else:
+                    loss, acc = strategy.eval(validation, writer, 'sh')
+                    matrix[task_id, -1] = acc
             else:
+                for eval_task_id , (eval_task_train_loader, eval_task_val_loader) in enumerate(tasks):
+                    loss, acc = strategy.eval(eval_task_val_loader, None, 'sh')
+                    matrix[task_id, eval_task_id] = acc
                 loss, acc = strategy.eval(sh_val_loader, writer, 'sh')
 
         continual_metrics.append((loss, acc))
+
 
 
     
@@ -162,7 +183,9 @@ def main(seed):
     
     row = ",".join(str(value) for value in data)
     utils.write_line_to_csv(row, strategy.get_csv_name(), OPT.APPEND)
-
+    if OPT.DATASET == "Core50":
+        seaborn.heatmap(matrix, vmin = 0, vmax = 1, annot = True)
+        plt.savefig(f"{OPT.PROJECT_FOLDER}/matrices/{strategy.get_csv_name()[:-4].split('/')[-1]}_{OPT.SEED}.pdf")
 
     if OPT.TENSORBOARD:
         writer.close()

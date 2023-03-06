@@ -19,11 +19,12 @@ def make_args(task_id):
     parser.add_argument('--start_iteration', type=int, default=0, help='training iterations')
     parser.add_argument('--half', action='store_true')
     parser.add_argument('--batch', type=int, default=-1)
-    parser.add_argument('--gpu_id', type=int, default=0)
+    parser.add_argument('--gpu_id', type=int, default=1)
     parser.add_argument('--RP_hid', type=int, default=128)
     parser.add_argument('--name_folder', type=str, default="")
     parser.add_argument('--save_folder', type=str, default="CDD/features_final")
     parser.add_argument('--no_init', action = "store_true")
+    parser.add_argument('--seed', type=int, default=0)
 
     # hparms for ae
     parser.add_argument('--ae_iteration', type=int, default=1000)
@@ -54,7 +55,7 @@ def make_args(task_id):
 
 
     # image syn evaluation
-    parser.add_argument('--model_eval_pool', type=str, default="ConvNet/dla46x_c")
+    parser.add_argument('--model_eval_pool', type=str, default="ConvNet")
     parser.add_argument('--epoch', type=int, default=200)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--print_every', type=int, default=100)

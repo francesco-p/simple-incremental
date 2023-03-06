@@ -29,7 +29,7 @@ class OPT:
 
     parser.add_argument('--data_path', type=str, default=f'{os.environ["DATASET_ROOT"]}', help='Path where data is stored')
     parser.add_argument('--project_path', type=str, default=f'{os.environ["NI_PROJECT"]}', help='Path of current folder')
-    parser.add_argument('--device', type=str, default='0', help='Gpu to use, -1 for cpu')
+    parser.add_argument('--device', type=str, default='1', help='Gpu to use, -1 for cpu')
     
     #####################
     ###### EXPERIM ######
@@ -37,10 +37,11 @@ class OPT:
     parser.add_argument('--pretrained', default=False, action=argparse.BooleanOptionalAction, help='Use pretrained model')
     
     parser.add_argument('--dataset', type=str, default='Core50', help='Dataset to use')
+    parser.add_argument('--split_core', action=argparse.BooleanOptionalAction, default=False, help='split into scenarios')
     parser.add_argument('--num_tasks', type=int, default=11, help='Number of tasks')
     parser.add_argument('--seed', type=int, default=0, help='Seed')
 
-    parser.add_argument('--new_csv', default=False, action=argparse.BooleanOptionalAction, help='Delete current csv file andcreate a new one')
+    parser.add_argument('--append', default=True, action=argparse.BooleanOptionalAction, help='Delete current csv file andcreate a new one')
     parser.add_argument('--tboard', default=False, action=argparse.BooleanOptionalAction, help='Tensorboard')
     parser.add_argument('--eval_every', type=int, default=1, help='Evaaluation task every x epochs [use 1 for now]')
 
@@ -70,7 +71,7 @@ class OPT:
     
     ######################
     ###### STRATEGY ######
-    parser.add_argument('--strategy', required=False, type=str, default='finetuning', help='Strategy to be used')
+    parser.add_argument('--strategy', required=False, type=str, default='CDD', help='Strategy to be used')
     # SURGICAL
     parser.add_argument('--surgical_layer', type=int, default=3, help='Surgical layer')
     # REPLAY / CDD
@@ -101,6 +102,7 @@ class OPT:
 
     # Datset parameters
     DO_WARMUP = opts.do_warmup
+    SPLIT_CORE = opts.split_core
     
     DATASET = opts.dataset
     NUM_TASKS = opts.num_tasks
@@ -120,7 +122,7 @@ class OPT:
     TENSORBOARD = opts.tboard
 
     # Append to .csv ?
-    APPEND = opts.new_csv
+    APPEND = opts.append
 
     ############ FH PARAMS ############
     LR_FH = 1e-3
@@ -140,7 +142,7 @@ class OPT:
     #ARGS_CONT = {'original_impl':True}
     if METHOD_CONT == 'surgicalft':
         ARGS_CONT = {'layer':opts.surgical_layer}
-    elif METHOD_CONT == 'replay':
+    elif METHOD_CONT == 'replay' or METHOD_CONT == "CDD":
         ARGS_CONT = {'buffer_size':opts.buffer_size}
     else:
         ARGS_CONT = {}

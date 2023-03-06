@@ -34,6 +34,7 @@ import CDD.main_single as main_single
 from args import make_args
 
 def main(seed):
+    
     utils.set_seeds(seed)
     print("###########################################")
     print("########### DATASET PREPARATION ###########")
@@ -64,4 +65,5 @@ def main(seed):
 
 
 if __name__ == "__main__":
+   print(OPT.SEED)
    main(OPT.SEED)

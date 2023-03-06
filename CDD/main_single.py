@@ -20,7 +20,7 @@ from opt import OPT
 
 def main(args, dset_train, dset_test):
     args.device = torch.device(f"cuda:{args.gpu_id}")
-    args.ae_path = f'CDD/pretrained_ae/{args.dataset}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_default.pth'
+    args.ae_path = f'CDD/pretrained_ae/{OPT.DATASET}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_seed_{OPT.SEED}.pth'
     #args.ae_path = f'CDD/pretrained_ae/CIFAR100_1_10_10_default.pth'
     if args.exp_name is None:
         args.exp_name = f'{args.model}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}'
@@ -180,6 +180,6 @@ def main(args, dset_train, dset_test):
     for key in args.model_eval_pool:
         accs = accs_all_exps[key]
         print('Train on %s, Evaluate on %s for %d: mean  = %.2f%%  std = %.2f%%'%(args.model, key, len(accs), np.mean(accs), np.std(accs)))
-        with open(f'{args.save_path}/{args.dataset}/{args.exp_name}/{key}_final_results.txt', 'w') as f:
+        with open(f'{save_path}/{key}_final_results.txt', 'w') as f:
             f.write(f'mean = {np.mean(accs)}, std = {np.std(accs)}')
 

@@ -37,7 +37,7 @@ class TensorDataset_one_hot(Dataset):
 
 class CDD(Base):
 
-    def __init__(self, model) -> None:
+    def __init__(self, model, buffer_size) -> None:
         super().__init__()
         self.model = model
         self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
@@ -45,6 +45,7 @@ class CDD(Base):
         self.name = "CDD"
         self.buffer_images = torch.tensor([])
         self.buffer_labels = torch.tensor([])
+        self.buffer_size = buffer_size
 
 
     def train(self, train_loader, val_loader, writer, tag, scheduler=False):
@@ -54,21 +55,20 @@ class CDD(Base):
             sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.EPOCHS_CONT, steps_per_epoch=len(train_loader))
 
 
-
         if int(tag)>0:
 
-            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}/ConvNet_1_10_10/task_{int(tag) - 1}/res.pth")
+            syn_images_and_labels = torch.load(f"CDD/results/{OPT.DATASET}_{OPT.SEED}/ConvNet_1_5_4//task_{int(tag) - 1}/res.pth")
             
             if int(tag)==1:
-                self.buffer_images = syn_images_and_labels["data"][0][0][:OPT.BUFFER_SIZE]
-                self.buffer_labels = F.one_hot(syn_images_and_labels["data"][0][1], num_classes = OPT.NUM_CLASSES)[:OPT.BUFFER_SIZE]
+                self.buffer_images = syn_images_and_labels["data"][0][0][:self.buffer_size]
+                self.buffer_labels = F.one_hot(syn_images_and_labels["data"][0][1], num_classes = OPT.NUM_CLASSES)[:self.buffer_size]
             
             if int(tag)>1:
-                indices = torch.randperm(self.buffer_labels.shape[0])[:OPT.BUFFER_SIZE]
+                indices = torch.randperm(self.buffer_labels.shape[0])[:self.buffer_size]
                 self.buffer_images = self.buffer_images[indices].to(OPT.DEVICE)
                 self.buffer_labels = self.buffer_labels[indices].to(OPT.DEVICE)
 
-                indices = torch.randperm(syn_images_and_labels["data"][0][1].shape[0])[:OPT.BUFFER_SIZE]
+                indices = torch.randperm(syn_images_and_labels["data"][0][1].shape[0])[:self.buffer_size]
                 
                 #normalize keeping count of how many task have been avaraged so far
                 self.buffer_images *= torch.tensor(float(tag) - 1.).long()
@@ -110,8 +110,10 @@ class CDD(Base):
                 # Forward data to model and compute loss
                 y_hat = utils.check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
-                y_onehot = y.to(torch.float32) #F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
-                loss_train = self.loss_fn(y_hat, y_onehot)
+                if int(tag)==0:
+                    y = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32) 
+        
+                loss_train = self.loss_fn(y_hat, y)
 
                 # Backward
                 loss_train.backward()
@@ -135,17 +137,17 @@ class CDD(Base):
             ####################
             #### Validation ####
             if (epoch == 0) or ((epoch % OPT.EVAL_EVERY_CONT) == 0):
-                eval_loss, eval_acc = self.eval(val_loader, writer, tag, self.model)
+                eval_loss, eval_acc = self.eval(val_loader, writer, tag)
                 #torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}_{OPT.MODEL}.pt')
 
 
-    def eval(self, val_loader, writer, tag, model):
+    def eval(self, val_loader, writer, tag ):
         """ Evaluate the model on the evaluation set"""
         with torch.no_grad():
             cumul_loss_eval = 0
             cumul_acc_eval = 0
             seen = 0
-            model.eval()
+            self.model.eval()
             for x, y in val_loader:
 
                 # Move to GPU
@@ -153,7 +155,7 @@ class CDD(Base):
                 y = y.to(OPT.DEVICE)
 
                 # Forward to model
-                y_hat = utils.check_output(model(x))['y_hat']
+                y_hat = utils.check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
                 y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
                 loss_test = self.loss_fn(y_hat, y_onehot)
@@ -170,10 +172,8 @@ class CDD(Base):
         
         return cumul_loss_eval, cumul_acc_eval
 
-    def get_name(self):
-        fname = os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{OPT.METHOD_CONT}_{OPT.MODEL.replace('_','')}_epochs{OPT.EPOCHS_CONT}_buffer{OPT.BUFFER_SIZE}.csv")
-        return fname
-
+    def get_csv_name(self):
+        return os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{self.name.replace('_','')}{self.buffer_size}_{OPT.MODEL.replace('_','')}_epochs{OPT.EPOCHS_CONT}.csv")
     def log_metrics(self, loss, acc, epoch, session, writer, tag):
         """ Prints metrics to screen and logs to tensorboard """
         print(f'        {tag}_{session:<6} - l:{loss:.5f}  a:{acc:.5f}')

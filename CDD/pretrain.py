@@ -43,6 +43,6 @@ def main(args, dset):
             print(f'pretrain step {i}: {loss.item()}')
 
     os.makedirs("./pretrained_ae/", exist_ok=True)
-    save_name = f'CDD/pretrained_ae/{OPT.DATASET}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_default.pth'
+    save_name = f'CDD/pretrained_ae/{OPT.DATASET}_{args.ipc}_{args.num_seed_vec}_{args.num_decoder}_seed_{OPT.SEED}.pth'
     torch.save(generator.state_dict(), save_name)
 

@@ -12,3 +12,6 @@ CDD/pretrained_ae
 venv/
 tests/
 \#*\#
+*.pdf
+matrices/
+*~
