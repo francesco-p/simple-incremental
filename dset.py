@@ -22,7 +22,8 @@ class AllCore50Dataset(Dataset):
         """ Retrieve all paths and labels and shuffle them"""
 
         # Retrieve all paths of the specified shenario
-        self.paths = glob.glob(self.data_path+'/*/*/*.png')        
+        self.paths = glob.glob(self.data_path+'/*/*/*.png')
+        random.shuffle(self.paths)
         self.labels = self._extract_labels_from_paths(self.paths)
     
     def reset_task_to(self, scenario_n):

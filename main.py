@@ -58,6 +58,7 @@ def MethodFactory(method, **kwargs):
 
 
 def main(seed):
+
     utils.set_seeds(seed)
 
     if OPT.TENSORBOARD:
@@ -153,10 +154,11 @@ def main(seed):
                     matrix[task_id, eval_task_id] = acc
                 
                 if OPT.SPLIT_CORE:
-                    matrix[task_id, -1] = 0.
-                else:
                     loss, acc = strategy.eval(validation, writer, 'sh')
                     matrix[task_id, -1] = acc
+                else:
+                    matrix[task_id, -1] = 0.
+                    
             else:
                 for eval_task_id , (eval_task_train_loader, eval_task_val_loader) in enumerate(tasks):
                     loss, acc = strategy.eval(eval_task_val_loader, None, 'sh')
