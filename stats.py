@@ -39,6 +39,7 @@ DSET_TRANSF = {
         trs.ToPILImage(),
         trs.RandomHorizontalFlip(),
         trs.ToTensor(),
+        trs.Normalize((153.0076, 144.8722, 137.9779), (54.9966, 56.9629, 60.5377))
     ])
 }
 

@@ -287,3 +287,28 @@ def gen_core50_tasks():
     val_loader = DataLoader(val_dset, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=OPT.NUM_WORKERS)
     
     return tasks, val_loader, subsets
+
+
+
+
+if __name__ == '__main__':
+    from tqdm import tqdm
+    import numpy as np
+    dataset = AllCore50Dataset(OPT.DATA_FOLDER, scenario_n=-1, transform=None)
+    
+    mean_tensor = torch.zeros((128,128,3))
+    for img, label in tqdm(dataset): 
+        mean_tensor += img
+    mean_tensor = mean_tensor / len(dataset)
+    mean = mean_tensor.mean(dim=0).mean(dim=0)
+    print(mean)
+
+    std = torch.zeros(3)
+    for img, label in tqdm(dataset):
+        std += torch.sum(torch.sum((torch.tensor(img) - mean.unsqueeze(0).unsqueeze(0))**2 , dim=0), dim=0)
+
+    std /= (len(dataset)*128*128)
+    std = torch.sqrt(std)
+    print(std)
+
+    

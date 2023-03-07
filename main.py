@@ -85,6 +85,8 @@ def main(seed):
         else:
             tasks, subsets = dset.get_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
 
+    import ipdb; ipdb.set_trace()
+
 
     if OPT.DO_WARMUP:
         if OPT.LOAD_FISRT_SECOND_HALF_MODELS:

@@ -20,6 +20,7 @@ def make_args(task_id):
     parser.add_argument('--half', action='store_true')
     parser.add_argument('--batch', type=int, default=-1)
     parser.add_argument('--gpu_id', type=int, default=1)
+    parser.add_argument('--device', type=int, default=1)
     parser.add_argument('--RP_hid', type=int, default=128)
     parser.add_argument('--name_folder', type=str, default="")
     parser.add_argument('--save_folder', type=str, default="CDD/features_final")

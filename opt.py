@@ -30,6 +30,8 @@ class OPT:
     parser.add_argument('--data_path', type=str, default=f'{os.environ["DATASET_ROOT"]}', help='Path where data is stored')
     parser.add_argument('--project_path', type=str, default=f'{os.environ["NI_PROJECT"]}', help='Path of current folder')
     parser.add_argument('--device', type=str, default='1', help='Gpu to use, -1 for cpu')
+    # diocane
+    parser.add_argument('--gpu_id', type=int, default=1)
     
     #####################
     ###### EXPERIM ######
@@ -78,6 +80,13 @@ class OPT:
     parser.add_argument('--buffer_size', type=int, default=500, help='Buffer size of replay strategy')
     # CDD
     parser.add_argument('--cdd_iterations', type=int, default=1000, help='Buffer size of replay strategy')
+
+    #####################
+    #### CDD PARAMS #####
+    # [TODO] fixare gli argomenti di cdd o un eusaurimento nervoso otherwise
+    parser.add_argument('--num_seed_vec', type=int, default=20)
+    parser.add_argument('--num_decoder', type=int, default=1)
+
 
     opts = parser.parse_args()
     table = beautify_args(opts)
