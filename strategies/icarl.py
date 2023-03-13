@@ -4,13 +4,25 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
-from torch.utils.data import DataLoader, Dataset, ConcatDataset
+from torch.utils.data import DataLoader, Dataset
 
 from opt import OPT
 from strategies.base import Base
 from utils import check_output
-from einops import rearrange
-import stats
+from tqdm import tqdm
+import torchshow as ts
+import os
+
+
+def transform_core50_task_trainloader_to_tensor(train_loader):
+    """Transform a trainloader into a tensor"""
+    data = []
+    labels = []
+    for x, y in train_loader:
+        data.append(x)
+        labels.append(y)
+    return torch.cat(data), torch.cat(labels)
+
 
 class TensorDataset(Dataset):
     def __init__(self, x, y):
@@ -26,13 +38,14 @@ class TensorDataset(Dataset):
         return self.x[idx], int(self.y[idx])
 
 
-class ExamplarMemoryNI:
-    """ Memory for iCaRL it does not require to implement the removal of the old classes
-    since it is used in a NI setting K=50 because it is VERY slow otherywise.
+class ICARL_ReplayMemory:
+    """ Memory for iCaRL it does not require to implement the removal
+      of the old classes since it is used in a NI settings 
+      (not sure of this choice).
     """
 
     def __init__(self, phi, num_classes, img_size, emb_size, K=500) -> None:
-        # Feature extractor (should be a resnet32 as in the paper)
+        # Feature extractor (resnet32 in the paper)
         self.phi = phi
         # Embedding size
         self.emb_size = emb_size
@@ -43,112 +56,192 @@ class ExamplarMemoryNI:
         # Examplar set
         self.P = torch.zeros((num_classes, self.m, *img_size))
 
+
     def get_examplars_dset(self):
-        """ Return a TensorDataset with the examplars """
+        """ This method is used to get the examplars of the memory
+        that have been computed in the update method
+        This is used in the distillation loss
+
+        Return a TensorDataset with the examplars and their labels
+        """
         labels = torch.arange(self.P.shape[0]).repeat_interleave(self.m)
         data = self.P.view(-1, *self.P.shape[2:])
         return TensorDataset(data, labels)
 
-    def compute_mean_with_dloader(self, the_images, num_workers=8):
-        """ Compute the mean of the images of a class 
-        it would be easier to use tensor.mean() but it is not possible
-        when you have a lot of images, therefore we use a dataloader
+
+    def compute_mean_feat_with_dloader(self, dataloader, num_workers=8):
+        """ Compute the mean of the images of a class. We use this
+        when we cannot use tensor.mean() because we have a lot of images
         """
-        # Convert the tensor to a TensorDataset with dummy labels
-        dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False, num_workers=num_workers)
-        normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
-        # Compute the mean
-        mu = torch.zeros(self.emb_size).to(OPT.DEVICE)
+        mu = None 
         for x in dataloader:
             x = x.to(OPT.DEVICE)
             x = x.to(torch.float32)
-            x = normalization(x)
-            # Compute the embeddings of the images
-            embeddings = check_output(self.phi(x))['fts']
-            mu += embeddings.sum(dim=0)
-        mu /= len(dataloader.dataset)   # len(dataloader.dataset) = the_images.shape[0]
-
+            #normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
+            #x = normalization(x)
+            embeddings = self.phi(x)
+            if mu == None:
+                mu = embeddings.view(embeddings.shape[0], -1).sum(dim=0)
+            else:
+                mu += embeddings.view(embeddings.shape[0], -1).sum(dim=0)
+        # len(dataloader.dataset) == the_images.shape[0]
+        mu /= len(dataloader.dataset)
         return mu
 
 
-    def construct_examplar_set(self, data, labels):
-        """ Construct the examplar set for the first task """
+    def update(self, data, labels):
+        """ Construct the memory buffer examplar set for the current task 
         
-        # Get the images of the first class
-        for i in range(0, OPT.NUM_CLASSES):
-            print(i, end=' ')
+        Args:
+            data (torch.Tensor): images of the current task
+            labels (torch.Tensor): labels of the current task
+        """
+
+        # Given a task, it extracts the images of each class
+        print("Constructing examplar set...")
+        for i in tqdm(range(0, OPT.NUM_CLASSES)):
             the_images = data[labels == i]
-            # Select the examplars
-            self.update_examplars(the_images, i)
+
+            # and select the most representative examplars to be stored
+            self.update_class(the_images, i)
 
 
-    def compute_distances(self, the_images, the_class, k, mu):
-        """ Compute the distances between the images and the mean"""
+    def compute_distances(self, dataloader, the_class, k, mu):
+        """ Compute the distances between the images of a class and its mean 
+        this is to select the most representative images of the class
 
-        normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
-        dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False, num_workers=OPT.NUM_WORKERS)
+        Args:
+            dataloader (DataLoader): dataloader of the images of the class
+            the_class (int): class index
+            k (int): number of examplars of the class currently stored
+            mu (torch.Tensor): mean of the class
+        """
+
+        #-------------------#
+        # This is a speedup hack to compute the examplars without using a dataloader
+        # it works for a small batch size, if this does not work, use the commented code
+        if k != 0:
+            inp = self.P[the_class, :k].to(OPT.DEVICE)
+            examplars_mu = self.phi(inp)[-1].mean(dim=0)
+            examplars_mu = examplars_mu.view(-1).unsqueeze(0)
+            self.P[the_class, :k].to('cpu')
+        else:
+            examplars_mu = torch.zeros((self.emb_size)).to(OPT.DEVICE).unsqueeze(0)
+        #------- INSTEAD OF ------------#        
+        #examplars_loader = DataLoader(self.P[the_class, :k], batch_size=OPT.BATCH_SIZE, shuffle=False)
+        #examplars_mu = self.compute_mean_feat_with_dloader(examplars_loader)
+        #-------------------#
+
+        # Initialize the mean of the class
         mu = mu.unsqueeze(0)
-        examplars_mu = self.compute_mean_with_dloader(self.P[the_class, :k])
-        dist = torch.zeros((the_images.shape[0]))
+
+        # Initialize the distances
+        dist = torch.zeros((len(dataloader.dataset)))
 
         for i, x in enumerate(dataloader):
             x = x.to(OPT.DEVICE)
             x = x.to(torch.float32)
-            x = normalization(x)
+            #normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
+            #x = normalization(x)
             start_idx = i * OPT.BATCH_SIZE
             end_idx = start_idx + OPT.BATCH_SIZE
+            
             # Compute the embeddings of the images
-            embeddings = check_output(self.phi(x))['fts']
+            embeddings = self.phi(x)
+            embeddings = embeddings.view(embeddings.shape[0], -1)
+
+            # Compute the distances as in the paper    
             if k == 0:
                 dist[start_idx:end_idx] = torch.norm(mu - embeddings, dim=1)
             else:
                 dist[start_idx:end_idx] = torch.norm(mu - 1/k * (embeddings + examplars_mu ), dim=1)
+
         return dist
 
 
-    def update_examplars(self, the_images, the_class):
-        """ implements algorithm 4 of the paper"""
+    def update_class(self, the_images, the_class):
+        """ implements algorithm 4 of the paper. 
+        selects the most m representative images of a class 
+        and updates the examplar set P
+
+        Args:
+            the_images (torch.Tensor): images of the class
+            the_class (int): class index
+        """
 
         if the_images.shape[0] < self.m:
+            # This error happens when the number of images of a class is less than
+            # the number of examplars per class
             raise ValueError(f"the_images.shape[0] = {the_images.shape[0]} < self.m = {self.m}")
-
-        # Real mean
-        mu = self.compute_mean_with_dloader(the_images)
         
-        # Create the examplar set
+        # First, we must modify the model to return only the features without the head
+        self._remove_classifier_head()
+
+        # Compute the mean of the images of the current class
+        dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False)
+        mu = self.compute_mean_feat_with_dloader(dataloader)
+        
+        # Iteratively selects the most representative images up to m
         for k in range(self.m):
-            # Distances between the images and the mean 
+            # Initialize the distances
             dist = torch.zeros((the_images.shape[0]))
 
-            # Compute the distances
-            dist = self.compute_distances(the_images, the_class, k, mu)
+            # Compute the distances between the images and the mean
+            dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False)
+            dist = self.compute_distances(dataloader, the_class, k, mu)
                 
             # Find the image with the minimum distance
             idx = torch.argmin(dist, dim=0)
+
             # Add the image to the memory
             self.P[the_class, k] = the_images[idx] # p_k
-            # Remove the image from the dataset
+            
+            # Remove the image from the task
             the_images = torch.cat((the_images[:idx], the_images[idx+1:]))
 
+        # Add the classifier head back to be able to train the model
+        self._add_classifier_head()
 
 
+    def _remove_classifier_head(self):
+        """ Uninstall classifier head and save it temporalily """
+        self.phi._temp_fc = self.phi.fc
+        self.phi.fc = nn.Identity()
 
-class iCaRL(Base):
+    def _add_classifier_head(self):
+        """ Install classifier head """
+        self.phi.fc = self.phi._temp_fc
+        del self.phi._temp_fc
+        
+
+    def visualize_examplars(self, save_path='/tmp/examplars.png'):
+        """ Visualize the examplars """
+        # ts.set_image_mean([153.0076, 144.8722, 137.9779])
+        # ts.set_image_std([54.9966, 56.9629, 60.5377])
+        ts.save(self.P.view(-1, *self.P.shape[2:]), save_path, ncols=self.m)
+
+
+class ICARL(Base):
 
     def __init__(self, model) -> None:
         super().__init__()
         self.model = model
         self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
         self.loss_fn = nn.CrossEntropyLoss()
-        self.name = "iCaRL"
-        self.replay_buffer = ExamplarMemoryNI(self.model, OPT.NUM_CLASSES, OPT.IMG_SHAPE, OPT.EMB_SIZE, K=OPT.MEMORY_SIZE)
+        self.name = "ICARL"
+        self.replay_memory = ICARL_ReplayMemory(self.model, OPT.NUM_CLASSES, OPT.IMG_SHAPE, OPT.EMB_SIZE, K=OPT.MEMORY_SIZE)
 
 
     def compute_distillation_loss(self, old_model):
         """ Compute the output of the old model """
         
+        # usage: kl_loss(F.log_softmax(input, dim=1), F.softmax(target, dim=1)
+        # input should be probabilities in log space (to avoid underflow)
+        # target should be probabilities
+        kl_loss = nn.KLDivLoss(log_target=True)
+
         # Get the examplar set
-        replay_buffer = self.replay_buffer.get_examplars_dset()
+        replay_buffer = self.replay_memory.get_examplars_dset()
         loader = DataLoader(replay_buffer, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=OPT.NUM_WORKERS)
         
         old_model.to(OPT.DEVICE)
@@ -163,41 +256,28 @@ class iCaRL(Base):
             new_outputs = check_output(self.model(x))['y_hat']
 
             # Compute the distillation loss
-            distill_loss += nn.KLDivLoss()(F.log_softmax(old_outputs, dim=1), F.softmax(new_outputs, dim=1))
+            distill_loss += kl_loss(F.log_softmax(new_outputs, dim=1), F.softmax(old_outputs, dim=1))
             seen += x.shape[0]
 
         return distill_loss, seen
 
 
     def train(self, train_loader, val_loader, writer, tag, scheduler=False):
-        
-        # Move model to GPU
-        self.model.to(OPT.DEVICE)
 
-        ## Create a new DataLoader with the concatenated data
-        #concat_dataloader = DataLoader(
-        #    ConcatDataset((self.replay_buffer.get_examplars_dset(), train_loader.dataset)),
-        #    batch_size=OPT.BATCH_SIZE,
-        #    shuffle=True # important to shuffle the data
-        #)
+        self.model.to(OPT.DEVICE)
         
         # Previous frozen model
         old_model = copy.deepcopy(self.model)
         for p in old_model.parameters():
             p.requires_grad = False
 
+        # We need to extract a tensor instead of a dataloader
+        data, labels = transform_core50_task_trainloader_to_tensor(train_loader)
 
-        # Update the examplar set from subsa
-        indices = train_loader.dataset.indices
-        # trnsf = train_loader.dataset.dataset.transform
-        data = torch.tensor(train_loader.dataset.dataset.data[indices])
-        # [TODO] WHY WE FLIP???????????????????????
-        data = rearrange(data, 'b h w c -> b c h w')
-        labels = torch.tensor(train_loader.dataset.dataset.targets)[indices]
-        # assumes normalization is the last transform
-        normalization_transform = train_loader.dataset.dataset.transform.transforms[-1]
+        # Update the examplar set
         with torch.no_grad():
-            self.replay_buffer.construct_examplar_set(data, labels)
+            self.replay_memory.update(data, labels)
+            self.replay_memory.visualize_examplars()
 
         
         for epoch in range(0, OPT.EPOCHS_CONT):
@@ -210,13 +290,11 @@ class iCaRL(Base):
             seen = 0
             self.model.train()
 
-
             for x, y in train_loader:
                 # Move to GPU
                 x = x.to(OPT.DEVICE)
                 y = y.to(OPT.DEVICE)
 
-                # NEW
                 y_hat = check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
                 
@@ -234,7 +312,7 @@ class iCaRL(Base):
                 seen += len(y)
 
 
-            # Compute the distillation loss
+            # Compute the distillation loss on memory buffer
             loss_dstll, seen_dstll = self.compute_distillation_loss(old_model)
             loss_dstll.backward()
             self.optimizer.step()
@@ -243,6 +321,7 @@ class iCaRL(Base):
             loss_dstll = loss_dstll.item() / seen_dstll
             cumul_acc_train /= seen
             cumul_loss_train /= seen
+
             # Print measures
             self.log_metrics(cumul_loss_train, loss_dstll, cumul_acc_train, epoch, 'train', writer, tag)
 
@@ -281,6 +360,7 @@ class iCaRL(Base):
 
             cumul_acc_eval /= seen
             cumul_loss_eval /= seen
+
             # Print measures
             self.log_metrics(cumul_loss_eval, -1, cumul_acc_eval, -1, 'eval', writer, tag)
         
@@ -289,9 +369,23 @@ class iCaRL(Base):
 
     def log_metrics(self, loss_ce, loss_dstll, acc, epoch, session, writer, tag):
         """ Prints metrics to screen and logs to tensorboard """
-        print(f'        {tag}_{session:<6} - l:{loss_dstll+loss_ce:.5f} = l_dstll:{loss_dstll:.5f} + l_ce:{loss_ce:.5f}  a:{acc:.5f}')
+        if session == 'eval':
+            print(f'        {tag}_{session:<6} - l_ce:{loss_ce:.5f}  a:{acc:.5f}')
+        else:
+            print(f'        {tag}_{session:<6} - l:{loss_dstll+loss_ce:.5f} = l_dstll:{loss_dstll:.5f} + l_ce:{loss_ce:.5f}  a:{acc:.5f}')
 
         if OPT.TENSORBOARD:
             writer.add_scalar(f'{tag}/loss_ce/{session}', loss_ce, epoch)
             writer.add_scalar(f'{tag}/loss_dstll/{session}', loss_dstll, epoch)
             writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
+
+
+    def get_csv_name(self):
+        
+        dset_task = f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks"
+        strategy_model = f"ICARL_mem{OPT.MEMORY_SIZE}_{OPT.MODEL.replace('_','')}"
+        epochs =f"epochs{OPT.EPOCHS_CONT}.csv"
+
+        fname = f"{dset_task}_{strategy_model}_{epochs}"
+        return os.path.join(OPT.CSV_FOLDER, fname)
+    

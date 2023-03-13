@@ -46,8 +46,8 @@ def MethodFactory(method, **kwargs):
         return st.CDD(**kwargs)
     elif method == 'Soup':
         return st.Soup(**kwargs)
-    elif method == 'icarl':
-        return st.iCaRL(**kwargs)
+    elif method == 'ICARL':
+        return st.ICARL(**kwargs)
     elif method == 'boundary':
         return st.Boundary(**kwargs)
     elif method == 'replay':
@@ -85,7 +85,6 @@ def main(seed):
         else:
             tasks, subsets = dset.get_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
 
-    import ipdb; ipdb.set_trace()
 
 
     if OPT.DO_WARMUP:
