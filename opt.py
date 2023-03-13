@@ -35,8 +35,6 @@ def beautify_args(args):
     return table.table
 
 
-
-
 def get_opts():
 
     parser = argparse.ArgumentParser(description='Parameter Processing')
@@ -156,112 +154,35 @@ def get_opts():
     opts.cdd_data_path = opts.data_path
     opts.cdd_seed = opts.seed
     
+    # we need to set the device to cuda:0 or cpu or change all the 
+    # occurences of opts.device to opts.gpu_id in kfs code
     opts.gpu_id = opts.device # 0 1 -1
     opts.cdd_gpu_id = opts.gpu_id 
-
     opts.device = f'cuda:{opts.gpu_id}' if int(opts.gpu_id) >= 0 else 'cpu'
     opts.cdd_device = opts.device
 
     opts.img_shape = DSET_IMG_SHAPE[opts.dataset]
 
-    return opts
+    # Manages other args that are not in the parser
+    opts.csv_folder = f'{opts.ni_project_path}/csv/'
+    opts.chk_folder = f'{opts.ni_project_path}/chk/'
 
+    opts.num_classes = DSET_CLASSES[opts.dataset]
+
+    # These are the paremeter that are passed to the strategy
+    # need to be checked for each strategys
+    #ARGS_CONT = {'original_impl':True}
+    if opts.strategy == 'surgicalft':
+        opts.args_cont = {'layer':opts.surgical_layer}
+    elif opts.strategy == 'replay' or opts.strategy == "CDD":
+        opts.args_cont = {'buffer_size':opts.buffer_size}
+    else:
+        opts.args_cont = {}
+
+    return opts
 
     
 OPT = get_opts()
 
-
-OPT.csv_folder = f'{OPT.ni_project_path}/csv/'
-OPT.chk_folder = f'{OPT.ni_project_path}/chk/'
-
-OPT.num_classes = DSET_CLASSES[OPT.dataset]
-
-#ARGS_CONT = {'original_impl':True}
-if OPT.strategy == 'surgicalft':
-    OPT.args_cont = {'layer':OPT.surgical_layer}
-elif OPT.strategy == 'replay' or OPT.strategy == "CDD":
-    OPT.args_cont = {'buffer_size':OPT.buffer_size}
-else:
-    OPT.args_cont = {}
-
-
 table = beautify_args(OPT)
 print(table)
-
-"""
-    # Folders
-    PROJECT_FOLDER = opts.project_path
-    DATA_FOLDER = opts.data_path
-    CSV_FOLDER = f'{PROJECT_FOLDER}/csv/'
-    CHK_FOLDER = f'{PROJECT_FOLDER}/chk/'
-    
-    # Set up folders
-    if not os.path.exists(CHK_FOLDER):
-        os.mkdir(CHK_FOLDER)
-    
-    if not os.path.exists(CSV_FOLDER):
-        os.mkdir(CSV_FOLDER)
-
-    # Set multiple seeds for multiple runs
-
-    SEED = opts.seed 
-
-    # Datset parameters
-    DO_WARMUP = opts.do_warmup
-    SPLIT_CORE = opts.split_core
-    
-    DATASET = opts.dataset
-    NUM_TASKS = opts.num_tasks
-    NUM_CLASSES = DSET_CLASSES[DATASET]
-    BATCH_SIZE = opts.batch_size
-    NUM_WORKERS = opts.num_workers
-
-    # Model parameters
-    MODEL = opts.model
-    PRETRAINED = opts.pretrained
-    DEVICE = opts.device
-
-    # Load pretrained models on first and second half
-    LOAD_FISRT_SECOND_HALF_MODELS = True
-
-    # Tensorboard logging
-    TENSORBOARD = opts.tboard
-
-    # Append to .csv ?
-    APPEND = opts.append
-
-    ############ FH PARAMS ############
-    LR_FH = 1e-3
-    WD_FH = 1e-4
-    EPOCHS_FH = 25
-    ############ SH PARAMS ############
-
-    LR_SH = 1e-3
-    WD_SH = 1e-4
-
-    EPOCHS_SH = 25
-    ############ CONT PARAMS ############
-    METHOD_CONT = opts.strategy
-    # Approach params, if no params, leave empty dict
-
-    
-
-
-    LR_CONT = opts.lr
-    WD_CONT = opts.wd
-    EPOCHS_CONT = opts.epochs
-    EVAL_EVERY_CONT = opts.eval_every
-    #####################################
-
-    #######CDD#######
-
-    CDD_ITERATIONS = opts.cdd_iteration
-
-    ######ICARL#######
-    KEEP = 15
-
-    ######ICARL#######
-    IMG_SHAPE = DSET_IMG_SHAPE[opts.dataset]
-    MEMORY_SIZE = opts.buffer_size
-    EMB_SIZE = 64 # 64 for resnet32
-"""
