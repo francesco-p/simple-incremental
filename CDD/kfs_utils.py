@@ -16,52 +16,52 @@ from opt import OPT
 from data import TensorDataset, DiffAugment
 
 def default_args(args):
-    if args.dataset == "SVHN" or args.dataset == "CIFAR10":
-        args.kernel_size = 2
-        args.stride = 2
-        args.padding = 0
-        if args.ipc == 1: # 1.0046875          
-            args.hdims = [6,9,12]
-            args.num_seed_vec = 13
-            args.num_decoder = 8
-        elif args.ipc == 10: # 10.28828125
-            args.hdims = [6,9,12]
-            args.num_seed_vec = 160
-            args.num_decoder = 12
-        elif args.ipc == 50: # 50.01921875
-            args.hdims = [6,12]
-            args.num_seed_vec = 200
-            args.num_decoder = 16
+    if args.cdd_dataset == "SVHN" or args.cdd_dataset == "CIFAR10":
+        args.cdd_kernel_size = 2
+        args.cdd_stride = 2
+        args.cdd_padding = 0
+        if args.cdd_ipc == 1: # 1.0046875          
+            args.cdd_hdims = [6,9,12]
+            args.cdd_num_seed_vec = 13
+            args.cdd_num_decoder = 8
+        elif args.cdd_ipc == 10: # 10.28828125
+            args.cdd_hdims = [6,9,12]
+            args.cdd_num_seed_vec = 160
+            args.cdd_num_decoder = 12
+        elif args.cdd_ipc == 50: # 50.01921875
+            args.cdd_hdims = [6,12]
+            args.cdd_num_seed_vec = 200
+            args.cdd_num_decoder = 16
         else:
             raise NotImplementedError
 
-    elif args.dataset == "CIFAR100":
-        args.kernel_size = 2
-        args.stride = 2
-        args.padding = 0
-        if args.ipc == 1: # 1.01921875      
-            args.hdims = [6,9,12]
-            args.num_seed_vec = 16
-            args.num_decoder = 8
-        elif args.ipc == 10: # 10.028828125
-            args.hdims = [6,9,12]
-            args.num_seed_vec = 160
-            args.num_decoder = 12
+    elif args.cdd_dataset == "CIFAR100":
+        args.cdd_kernel_size = 2
+        args.cdd_stride = 2
+        args.cdd_padding = 0
+        if args.cdd_ipc == 1: # 1.01921875      
+            args.cdd_hdims = [6,9,12]
+            args.cdd_num_seed_vec = 16
+            args.cdd_num_decoder = 8
+        elif args.cdd_ipc == 10: # 10.028828125
+            args.cdd_hdims = [6,9,12]
+            args.cdd_num_seed_vec = 160
+            args.cdd_num_decoder = 12
         else:
             raise NotImplementedError
 
-    elif args.dataset == "ImageNet10":  
-        args.kernel_size = 4
-        args.stride = 2
-        args.padding = 1
-        if args.ipc == 1: # 1.0041015625         
-            args.hdims = [3,3,3]
-            args.num_seed_vec = 64
-            args.num_decoder = 14
-        elif args.ipc == 10: # 10.005422247023809
-            args.hdims = [4,6]
-            args.num_seed_vec = 80
-            args.num_decoder = 14
+    elif args.cdd_dataset == "ImageNet10":  
+        args.cdd_kernel_size = 4
+        args.cdd_stride = 2
+        args.cdd_padding = 1
+        if args.cdd_ipc == 1: # 1.0041015625         
+            args.cdd_hdims = [3,3,3]
+            args.cdd_num_seed_vec = 64
+            args.cdd_num_decoder = 14
+        elif args.cdd_ipc == 10: # 10.005422247023809
+            args.cdd_hdims = [4,6]
+            args.cdd_num_seed_vec = 80
+            args.cdd_num_decoder = 14
         else:
             raise NotImplementedError
 
@@ -100,15 +100,15 @@ def evaluate(args, net, image_syn, label_syn, testloader, normalize):
 
     optimizer = torch.optim.Adam(net.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[2 * args.epoch // 3, 5 * args.epoch // 6], gamma=0.2)
+        optimizer, milestones=[2 * args.cdd_epoch // 3, 5 * args.cdd_epoch // 6], gamma=0.2)
 
     # train
     net.train()
-    for _ in trange(args.epoch):        
+    for _ in trange(args.cdd_epoch):        
         for x_tr, y_tr in trainloader:
             # data
-            x_tr, y_tr = x_tr.to(args.device), y_tr.to(args.device)
-            x_tr = DiffAugment(normalize(x_tr), args.dsa_strategy, param=args.dsa_param)
+            x_tr, y_tr = x_tr.to(args.cdd_device), y_tr.to(args.cdd_device)
+            x_tr = DiffAugment(normalize(x_tr), args.cdd_dsa_strategy, param=args.cdd_dsa_param)
             
             # update
             optimizer.zero_grad()
@@ -127,7 +127,7 @@ def evaluate(args, net, image_syn, label_syn, testloader, normalize):
     with torch.no_grad():
         for x_te, y_te in testloader:
             # data
-            x_te, y_te = x_te.to(args.device), y_te.to(args.device)
+            x_te, y_te = x_te.to(args.cdd_device), y_te.to(args.cdd_device)
             x_te = normalize(x_te)
 
             # prediction
@@ -145,39 +145,39 @@ def evaluate_debug(args, net, image_syn, label_syn, testloader, normalize):
     
     trainloader = DataLoader(
         TensorDataset(image_syn, label_syn),
-        batch_size=args.batch,
+        batch_size=args.cdd_batch,
         shuffle=True,
         num_workers=0
     )
     logger = Logger(
-        exp_name=f"{args.eval_opt}_{args.batch}_{args.lr}_{args.wd}_mixup_p=1.0,beta=0.2",
+        exp_name=f"{args.cdd_eval_opt}_{args.cdd_batch}_{args.cdd_lr}_{args.cdd_wd}_mixup_p=1.0,beta=0.2",
         save_dir=None,
         print_every=1,
         save_every=1,
-        total_step=args.epoch*len(trainloader),
+        total_step=args.cdd_epoch*len(trainloader),
         print_to_stdout=True,
         wandb_project_name=f"syn_debug",
         wandb_tags=[],
         wandb_config=args,
     )
-    if args.eval_opt == "sgd":
-        optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.wd)
-    elif args.eval_opt== "adam":
-        optimizer = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=args.wd)
+    if args.cdd_eval_opt == "sgd":
+        optimizer = torch.optim.SGD(net.parameters(), lr=args.cdd_lr, momentum=0.9, weight_decay=args.cdd_wd)
+    elif args.cdd_eval_opt== "adam":
+        optimizer = torch.optim.AdamW(net.parameters(), lr=args.cdd_lr, weight_decay=args.cdd_wd)
     else:
         raise NotImplementedError
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[2 * args.epoch // 3, 5 * args.epoch // 6], gamma=0.2)
+        optimizer, milestones=[2 * args.cdd_epoch // 3, 5 * args.cdd_epoch // 6], gamma=0.2)
 
     logger.start()
 
     # train
-    for _ in trange(args.epoch):        
+    for _ in trange(args.cdd_epoch):        
         for i, (x_tr, y_tr) in enumerate(trainloader):
             net.train()
             # data
-            x_tr, y_tr = x_tr.to(args.device), y_tr.to(args.device)
-            x_tr = DiffAugment(normalize(x_tr), args.dsa_strategy, param=args.dsa_param)
+            x_tr, y_tr = x_tr.to(args.cdd_device), y_tr.to(args.cdd_device)
+            x_tr = DiffAugment(normalize(x_tr), args.cdd_dsa_strategy, param=args.cdd_dsa_param)
 
             # mixup
             r = np.random.rand(1)
@@ -212,7 +212,7 @@ def evaluate_debug(args, net, image_syn, label_syn, testloader, normalize):
                 with torch.no_grad():
                     for x_te, y_te in testloader:
                         # data
-                        x_te, y_te = x_te.to(args.device), y_te.to(args.device)
+                        x_te, y_te = x_te.to(args.cdd_device), y_te.to(args.cdd_device)
                         x_te = normalize(x_te)
 
                         # prediction
@@ -239,7 +239,7 @@ def evaluate_debug(args, net, image_syn, label_syn, testloader, normalize):
     with torch.no_grad():
         for x_te, y_te in testloader:
             # data
-            x_te, y_te = x_te.to(args.device), y_te.to(args.device)
+            x_te, y_te = x_te.to(args.cdd_device), y_te.to(args.cdd_device)
             x_te = normalize(x_te)
 
             # prediction
@@ -257,22 +257,22 @@ def evaluate_imagenet(args, net, image_syn, label_syn, testloader, normalize):
     
     trainloader = DataLoader(
         TensorDataset(image_syn, label_syn),
-        batch_size=args.batch,
+        batch_size=args.cdd_batch,
         shuffle=True,
         num_workers=0
     )
     resize = transforms.Resize(224)
 
-    optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(net.parameters(), lr=args.cdd_lr, momentum=0.9, weight_decay=0.0005)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[2 * args.epoch // 3, 5 * args.epoch // 6], gamma=0.2)
+        optimizer, milestones=[2 * args.cdd_epoch // 3, 5 * args.cdd_epoch // 6], gamma=0.2)
 
     # train
-    for _ in trange(args.epoch):        
+    for _ in trange(args.cdd_epoch):        
         for x_tr, y_tr in trainloader:
             # data
-            x_tr, y_tr = x_tr.to(args.device), y_tr.to(args.device)
-            x_tr = DiffAugment(normalize(resize(x_tr)), args.dsa_strategy, param=args.dsa_param)
+            x_tr, y_tr = x_tr.to(args.cdd_device), y_tr.to(args.cdd_device)
+            x_tr = DiffAugment(normalize(resize(x_tr)), args.cdd_dsa_strategy, param=args.cdd_dsa_param)
             
             # update
             optimizer.zero_grad()
@@ -290,7 +290,7 @@ def evaluate_imagenet(args, net, image_syn, label_syn, testloader, normalize):
     with torch.no_grad():
         for x_te, y_te in testloader:
             # data
-            x_te, y_te = x_te.to(args.device), y_te.to(args.device)
+            x_te, y_te = x_te.to(args.cdd_device), y_te.to(args.cdd_device)
             x_te = normalize(resize(x_te))
 
             # prediction
@@ -337,11 +337,11 @@ def rand_bbox(size, lam):
 def evaluate_snu(args, model_eval, net, image_syn, label_syn, testloader, normalize):
     
     logger = Logger(
-        exp_name=f"mixup_snu_{args.beta1}_{args.beta2}",
+        exp_name=f"mixup_snu_{args.cdd_beta1}_{args.cdd_beta2}",
         save_dir=None,
         print_every=1,
         save_every=1,
-        total_step=args.epoch,
+        total_step=args.cdd_epoch,
         print_to_stdout=True,
         wandb_project_name=f"{model_eval}_debug_repeat",
         wandb_tags=[],
@@ -350,30 +350,30 @@ def evaluate_snu(args, model_eval, net, image_syn, label_syn, testloader, normal
     
     trainloader = DataLoader(
         TensorDataset(image_syn, label_syn),
-        batch_size=args.batch,
+        batch_size=args.cdd_batch,
         shuffle=True,
         num_workers=0
     )
 
-    optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(net.parameters(), lr=args.cdd_lr, momentum=0.9, weight_decay=0.0005)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[2 * args.epoch // 3, 5 * args.epoch // 6], gamma=0.2)
+        optimizer, milestones=[2 * args.cdd_epoch // 3, 5 * args.cdd_epoch // 6], gamma=0.2)
 
     # train
     logger.start()
-    for epoch in range(1, args.epoch+1):
+    for epoch in range(1, args.cdd_epoch+1):
         for x_tr, y_tr in trainloader:
             optimizer.zero_grad()
 
             # data
-            x_tr, y_tr = x_tr.to(args.device), y_tr.to(args.device)
-            x_tr = DiffAugment(normalize(x_tr), args.dsa_strategy, param=args.dsa_param)
+            x_tr, y_tr = x_tr.to(args.cdd_device), y_tr.to(args.cdd_device)
+            x_tr = DiffAugment(normalize(x_tr), args.cdd_dsa_strategy, param=args.cdd_dsa_param)
 
             # mixup
             r = np.random.rand(1)
             if r < 0.5:
-                lam = np.random.beta(args.beta1, args.beta2)
-                rand_index = random_indices(y_tr, nclass=args.num_classes)
+                lam = np.random.beta(args.cdd_beta1, args.cdd_beta2)
+                rand_index = random_indices(y_tr, nclass=args.cdd_num_classes)
 
                 y_tr_b = y_tr[rand_index]
                 bbx1, bby1, bbx2, bby2 = rand_bbox(x_tr.size(), lam)
@@ -399,7 +399,7 @@ def evaluate_snu(args, model_eval, net, image_syn, label_syn, testloader, normal
             with torch.no_grad():
                 for x_te, y_te in testloader:
                     # data
-                    x_te, y_te = x_te.to(args.device), y_te.to(args.device)
+                    x_te, y_te = x_te.to(args.cdd_device), y_te.to(args.cdd_device)
                     x_te = normalize(x_te)
 
                     # prediction
@@ -424,37 +424,37 @@ def evaluate_snu(args, model_eval, net, image_syn, label_syn, testloader, normal
 def evaluate_intra_code(args, model_eval, net, generator, testloader, normalize):
     
     logger = Logger(
-        exp_name=f"mixup_intra_code_{args.beta1}_{args.beta2}",
+        exp_name=f"mixup_intra_code_{args.cdd_beta1}_{args.cdd_beta2}",
         save_dir=None,
         print_every=1,
         save_every=1,
-        total_step=args.epoch,
+        total_step=args.cdd_epoch,
         print_to_stdout=True,
         wandb_project_name=f"{model_eval}_debug_repeat",
         wandb_tags=[],
         wandb_config=args,
     )
     
-    optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(net.parameters(), lr=args.cdd_lr, momentum=0.9, weight_decay=0.0005)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[2 * args.epoch // 3, 5 * args.epoch // 6], gamma=0.2)
+        optimizer, milestones=[2 * args.cdd_epoch // 3, 5 * args.cdd_epoch // 6], gamma=0.2)
 
     import math
-    iteration = math.ceil(args.num_classes*args.ipc*args.augment_factor*args.num_decoder / args.batch)
+    iteration = math.ceil(args.cdd_num_classes*args.cdd_ipc*args.cdd_augment_factor*args.cdd_num_decoder / args.cdd_batch)
 
     # train
     logger.start()
-    for epoch in range(1, args.epoch+1):
+    for epoch in range(1, args.cdd_epoch+1):
         for _ in range(iteration):
             optimizer.zero_grad()
             
             r = np.random.rand(1)
             with torch.no_grad():
                 x_tr_list, y_tr_list = [], []
-                for c in range(args.num_classes):
-                    seed_vec_idx = torch.randperm(args.ipc*args.augment_factor)[:5]
+                for c in range(args.cdd_num_classes):
+                    seed_vec_idx = torch.randperm(args.cdd_ipc*args.cdd_augment_factor)[:5]
                     seed_vec = generator.seed_vec[c][seed_vec_idx].clone().detach()
-                    decoder_idx = torch.randperm(args.num_decoder)[:5]
+                    decoder_idx = torch.randperm(args.cdd_num_decoder)[:5]
                     decoders = []
                     for idx in decoder_idx:
                         decoders.append(generator.decoders[idx])
@@ -462,7 +462,7 @@ def evaluate_intra_code(args, model_eval, net, generator, testloader, normalize)
                     for decoder in decoders:
                         # mixup
                         if r < 0.0:
-                            lam = np.random.beta(args.beta1, args.beta2)
+                            lam = np.random.beta(args.cdd_beta1, args.cdd_beta2)
                             seed_vec_ = seed_vec[torch.randperm(len(seed_vec))]
                             seed_vec = lam*seed_vec + (1.-lam)*seed_vec_
                             x_tr = decoder(seed_vec)
@@ -478,7 +478,7 @@ def evaluate_intra_code(args, model_eval, net, generator, testloader, normalize)
                 x_tr, y_tr = torch.cat(x_tr_list, dim=0), torch.cat(y_tr_list, dim=0)
 
             # data
-            x_tr = DiffAugment(normalize(x_tr), args.dsa_strategy, param=args.dsa_param)
+            x_tr = DiffAugment(normalize(x_tr), args.cdd_dsa_strategy, param=args.cdd_dsa_param)
 
             # update
             loss_tr = F.cross_entropy(net(x_tr), y_tr)
@@ -495,7 +495,7 @@ def evaluate_intra_code(args, model_eval, net, generator, testloader, normalize)
             with torch.no_grad():
                 for x_te, y_te in testloader:
                     # data
-                    x_te, y_te = x_te.to(args.device), y_te.to(args.device)
+                    x_te, y_te = x_te.to(args.cdd_device), y_te.to(args.cdd_device)
                     x_te = normalize(x_te)
 
                     # prediction
@@ -520,27 +520,27 @@ def evaluate_intra_code(args, model_eval, net, generator, testloader, normalize)
 def evaluate_inter_code(args, model_eval, net, generator, testloader, normalize):
     
     logger = Logger(
-        exp_name=f"mixup_inter_code_{args.beta1}_{args.beta2}",
+        exp_name=f"mixup_inter_code_{args.cdd_beta1}_{args.cdd_beta2}",
         save_dir=None,
         print_every=1,
         save_every=1,
-        total_step=args.epoch,
+        total_step=args.cdd_epoch,
         print_to_stdout=True,
         wandb_project_name=f"{model_eval}_debug_repeat",
         wandb_tags=[],
         wandb_config=args,
     )
     
-    optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(net.parameters(), lr=args.cdd_lr, momentum=0.9, weight_decay=0.0005)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[2 * args.epoch // 3, 5 * args.epoch // 6], gamma=0.2)
+        optimizer, milestones=[2 * args.cdd_epoch // 3, 5 * args.cdd_epoch // 6], gamma=0.2)
 
     import math
-    iteration = math.ceil(args.num_classes*args.ipc*args.augment_factor*args.num_decoder / args.batch)
+    iteration = math.ceil(args.cdd_num_classes*args.cdd_ipc*args.cdd_augment_factor*args.cdd_num_decoder / args.cdd_batch)
 
     # train
     logger.start()
-    for epoch in range(1, args.epoch+1):
+    for epoch in range(1, args.cdd_epoch+1):
         for _ in range(iteration):
             optimizer.zero_grad()
             
@@ -548,15 +548,15 @@ def evaluate_inter_code(args, model_eval, net, generator, testloader, normalize)
             with torch.no_grad():
                 x_tr_list, y_tr_list, y_tr_b_list = [], [], []
                 
-                decoder_idx = torch.randperm(args.num_decoder)[:5]
+                decoder_idx = torch.randperm(args.cdd_num_decoder)[:5]
                 decoders = []
                 for idx in decoder_idx:
                     decoders.append(generator.decoders[idx])
 
                 seed_vec_list = []
                 seed_y_list = []
-                for c in range(args.num_classes):
-                    seed_vec_idx = torch.randperm(args.ipc*args.augment_factor)[:5]
+                for c in range(args.cdd_num_classes):
+                    seed_vec_idx = torch.randperm(args.cdd_ipc*args.cdd_augment_factor)[:5]
                     seed_vec = generator.seed_vec[c][seed_vec_idx].clone().detach()
                     seed_vec_list.append(seed_vec)
                     seed_y = torch.LongTensor([c]*seed_vec.shape[0]).to(seed_vec.device)
@@ -566,7 +566,7 @@ def evaluate_inter_code(args, model_eval, net, generator, testloader, normalize)
 
                 # mixup
                 if r < 0.0:
-                    lam = np.random.beta(args.beta1, args.beta2)
+                    lam = np.random.beta(args.cdd_beta1, args.cdd_beta2)
                     permutation = torch.randperm(len(seed_vec))
 
                     seed_vec_ = seed_vec[permutation]
@@ -586,7 +586,7 @@ def evaluate_inter_code(args, model_eval, net, generator, testloader, normalize)
                     x_tr, y_tr = torch.cat(x_tr_list, dim=0), torch.cat(y_tr_list, dim=0)
 
             # data
-            x_tr = DiffAugment(normalize(x_tr), args.dsa_strategy, param=args.dsa_param)
+            x_tr = DiffAugment(normalize(x_tr), args.cdd_dsa_strategy, param=args.cdd_dsa_param)
 
             if r < 0.0:
                 l_tr = net(x_tr)
@@ -608,7 +608,7 @@ def evaluate_inter_code(args, model_eval, net, generator, testloader, normalize)
             with torch.no_grad():
                 for x_te, y_te in testloader:
                     # data
-                    x_te, y_te = x_te.to(args.device), y_te.to(args.device)
+                    x_te, y_te = x_te.to(args.cdd_device), y_te.to(args.cdd_device)
                     x_te = normalize(x_te)
 
                     # prediction
@@ -633,37 +633,37 @@ def evaluate_inter_code(args, model_eval, net, generator, testloader, normalize)
 def evaluate_intra_decoder(args, model_eval, net, generator, testloader, normalize):
     
     logger = Logger(
-        exp_name=f"mixup_intra_decoder_{args.beta1}_{args.beta2}",
+        exp_name=f"mixup_intra_decoder_{args.cdd_beta1}_{args.cdd_beta2}",
         save_dir=None,
         print_every=1,
         save_every=1,
-        total_step=args.epoch,
+        total_step=args.cdd_epoch,
         print_to_stdout=True,
         wandb_project_name=f"{model_eval}_debug_repeat",
         wandb_tags=[],
         wandb_config=args,
     )
     
-    optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(net.parameters(), lr=args.cdd_lr, momentum=0.9, weight_decay=0.0005)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[2 * args.epoch // 3, 5 * args.epoch // 6], gamma=0.2)
+        optimizer, milestones=[2 * args.cdd_epoch // 3, 5 * args.cdd_epoch // 6], gamma=0.2)
 
     import math
-    iteration = math.ceil(args.num_classes*args.ipc*args.augment_factor*args.num_decoder / args.batch)
+    iteration = math.ceil(args.cdd_num_classes*args.cdd_ipc*args.cdd_augment_factor*args.cdd_num_decoder / args.cdd_batch)
     from copy import deepcopy
     # train
     logger.start()
-    for epoch in range(1, args.epoch+1):
+    for epoch in range(1, args.cdd_epoch+1):
         for _ in range(iteration):
             optimizer.zero_grad()
             
             r = np.random.rand(1)
             with torch.no_grad():
                 x_tr_list, y_tr_list = [], []
-                for c in range(args.num_classes):
-                    seed_vec_idx = torch.randperm(args.ipc*args.augment_factor)[:5]
+                for c in range(args.cdd_num_classes):
+                    seed_vec_idx = torch.randperm(args.cdd_ipc*args.cdd_augment_factor)[:5]
                     seed_vec = generator.seed_vec[c][seed_vec_idx]
-                    decoder_idx = torch.randperm(args.num_decoder)[:5]
+                    decoder_idx = torch.randperm(args.cdd_num_decoder)[:5]
                     decoders = []
                     for idx in decoder_idx:
                         decoders.append(generator.decoders[idx])
@@ -671,8 +671,8 @@ def evaluate_intra_decoder(args, model_eval, net, generator, testloader, normali
                     for i in range(len(decoders)):
                         # mixup
                         if r < 0.5:
-                            lam = np.random.beta(args.beta1, args.beta2)
-                            decoder = deepcopy(decoders[0]).to(args.device)
+                            lam = np.random.beta(args.cdd_beta1, args.cdd_beta2)
+                            decoder = deepcopy(decoders[0]).to(args.cdd_device)
                             j = i if i == (len(decoders) - 1) else 0
                             for w, w1, w2 in zip(decoder.parameters(), decoders[i].parameters(), decoders[j].parameters()):
                                 w.data.copy_(lam*w1.data+(1.-lam)*w2.data)
@@ -689,7 +689,7 @@ def evaluate_intra_decoder(args, model_eval, net, generator, testloader, normali
                 x_tr, y_tr = torch.cat(x_tr_list, dim=0), torch.cat(y_tr_list, dim=0)
 
             # data
-            x_tr = DiffAugment(normalize(x_tr), args.dsa_strategy, param=args.dsa_param)
+            x_tr = DiffAugment(normalize(x_tr), args.cdd_dsa_strategy, param=args.cdd_dsa_param)
 
             # update
             loss_tr = F.cross_entropy(net(x_tr), y_tr) 
@@ -706,7 +706,7 @@ def evaluate_intra_decoder(args, model_eval, net, generator, testloader, normali
             with torch.no_grad():
                 for x_te, y_te in testloader:
                     # data
-                    x_te, y_te = x_te.to(args.device), y_te.to(args.device)
+                    x_te, y_te = x_te.to(args.cdd_device), y_te.to(args.cdd_device)
                     x_te = normalize(x_te)
 
                     # prediction
@@ -735,7 +735,7 @@ def evaluate_orig(args, model_eval, net, image_syn, label_syn, testloader, norma
         save_dir=None,
         print_every=1,
         save_every=1,
-        total_step=args.epoch,
+        total_step=args.cdd_epoch,
         print_to_stdout=True,
         wandb_project_name=f"{model_eval}_debug_repeat",
         wandb_tags=[],
@@ -744,22 +744,22 @@ def evaluate_orig(args, model_eval, net, image_syn, label_syn, testloader, norma
     
     trainloader = DataLoader(
         TensorDataset(image_syn, label_syn),
-        batch_size=args.batch,
+        batch_size=args.cdd_batch,
         shuffle=True,
         num_workers=0
     )
 
-    optimizer = torch.optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(net.parameters(), lr=args.cdd_lr, momentum=0.9, weight_decay=0.0005)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[2 * args.epoch // 3, 5 * args.epoch // 6], gamma=0.2)
+        optimizer, milestones=[2 * args.cdd_epoch // 3, 5 * args.cdd_epoch // 6], gamma=0.2)
 
     # train
     logger.start()
-    for epoch in range(1, args.epoch+1):
+    for epoch in range(1, args.cdd_epoch+1):
         for x_tr, y_tr in trainloader:
             # data
-            x_tr, y_tr = x_tr.to(args.device), y_tr.to(args.device)
-            x_tr = DiffAugment(normalize(x_tr), args.dsa_strategy, param=args.dsa_param)
+            x_tr, y_tr = x_tr.to(args.cdd_device), y_tr.to(args.cdd_device)
+            x_tr = DiffAugment(normalize(x_tr), args.cdd_dsa_strategy, param=args.cdd_dsa_param)
             
             # update
             optimizer.zero_grad()
@@ -779,7 +779,7 @@ def evaluate_orig(args, model_eval, net, image_syn, label_syn, testloader, norma
             with torch.no_grad():
                 for x_te, y_te in testloader:
                     # data
-                    x_te, y_te = x_te.to(args.device), y_te.to(args.device)
+                    x_te, y_te = x_te.to(args.cdd_device), y_te.to(args.cdd_device)
                     x_te = normalize(x_te)
 
                     # prediction

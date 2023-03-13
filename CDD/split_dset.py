@@ -31,11 +31,12 @@ import save_features
 import pretrain
 import argparse
 import CDD.main_single as main_single
-from args import make_args
+from opt import OPT
 
-def main(seed):
+def main():
+    args = OPT.opts
 
-    utils.set_seeds(seed)
+    utils.set_seeds(args.seed)
     print("###########################################")
     print("########### DATASET PREPARATION ###########")
 
@@ -56,7 +57,7 @@ def main(seed):
     for task_id, (task_train_sbs, task_val_sbs) in enumerate(subsets[0:]):
         t = task_id + 0
         print(f"---Beginning {t}---")
-        args = make_args(t)
+        args.cdd_name_folder = f"_{t}"
         pretrain.main(args, task_train_sbs)
         main_single.main(args, task_train_sbs, task_val_sbs)
         print(f"---Ending {t}---")
@@ -65,5 +66,4 @@ def main(seed):
 
 
 if __name__ == "__main__":
-   print(OPT.SEED)
-   main(OPT.SEED)
+   main()

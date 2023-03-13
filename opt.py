@@ -1,35 +1,52 @@
 from stats import DSET_CLASSES, DSET_IMG_SHAPE
 import os
 import argparse
-from terminaltables import SingleTable
+from terminaltables import AsciiTable
 
 def beautify_args(args):
     # Create a list of lists containing argument names and values
-    arg_lists = [['Argument', 'Value']]
-    for arg in vars(args):
-        arg_lists.append([arg, getattr(args, arg)])
+
+    # Print essential info separately
+    essential = ['project_path', 'data_path']
+    for v in essential:
+        print(f'{v}: '+vars(args)[v])
+
+    arg_lists = []
+    row = []
+    seen = 0
+    for arg in sorted(vars(args)):
+        if arg in essential:
+            continue
+        row.append(f'{arg}: {getattr(args, arg)}')
+        if seen % 3 == 0:
+            arg_lists.append(row)
+            row = []
+        seen += 1
 
     # Create a table object with the argument list
-    table = SingleTable(arg_lists)
+    table = AsciiTable(arg_lists)
+    table.title = 'Arguments'
 
     # Format the table
-    table.inner_row_border = True
+    #table.inner_row_border = True
+    table.inner_heading_row_border = False
     table.inner_column_border = False
 
     return table.table
 
 
 
-# Params
-class OPT:
 
+def get_opts():
+
+    parser = argparse.ArgumentParser(description='Parameter Processing')
     #####################
     ###### GENERAL ######
     parser = argparse.ArgumentParser(description='Single task training')
 
     parser.add_argument('--data_path', type=str, default=f'{os.environ["DATASET_ROOT"]}', help='Path where data is stored')
     parser.add_argument('--project_path', type=str, default=f'{os.environ["NI_PROJECT"]}', help='Path of current folder')
-    parser.add_argument('--device', type=str, default='1', help='Gpu to use, -1 for cpu')
+    parser.add_argument('--device', type=str, default='0', help='Gpu to use, -1 for cpu')
     # diocane
     parser.add_argument('--gpu_id', type=int, default=1)
     
@@ -78,17 +95,82 @@ class OPT:
     parser.add_argument('--surgical_layer', type=int, default=3, help='Surgical layer')
     # REPLAY / CDD
     parser.add_argument('--buffer_size', type=int, default=500, help='Buffer size of replay strategy')
-    # CDD
-    parser.add_argument('--cdd_iterations', type=int, default=1000, help='Buffer size of replay strategy')
 
     #####################
     #### CDD PARAMS #####
-    # [TODO] fixare gli argomenti di cdd o un eusaurimento nervoso otherwise
-    parser.add_argument('--num_seed_vec', type=int, default=20)
-    parser.add_argument('--num_decoder', type=int, default=1)
 
+    #cdd specific    
+    parser.add_argument('--cdd_model', type=str, default='ConvNet', help='model')
+    parser.add_argument('--cdd_iteration', type=int, default=1000, help='training iterations')
+    parser.add_argument('--cdd_start_iteration', type=int, default=0, help='training iterations')
+    parser.add_argument('--cdd_half', action='store_true')
+    parser.add_argument('--cdd_batch', type=int, default=-1)
+    parser.add_argument('--cdd_RP_hid', type=int, default=128)
+    parser.add_argument('--cdd_name_folder', type=str, default="")
+    parser.add_argument('--cdd_no_init', action = "store_true")
+    parser.add_argument('--cdd_save_folder', type=str, default="CDD/features_final")
+
+    # hparms for ae
+    parser.add_argument('--cdd_ae_iteration', type=int, default=1000)
+    parser.add_argument('--cdd_lr_ae', type=float, default=1e-2)
+    parser.add_argument('--cdd_ipc', type=int, default=1)
+    parser.add_argument('--cdd_hdims', type=list, default=[6,9,12])
+    parser.add_argument('--cdd_num_seed_vec', type=int, default=5)
+    parser.add_argument('--cdd_num_decoder', type=int, default=4)
+
+    # Adds custom params
+    parser.add_argument('--cdd_stride', type=int, default=2)
+    parser.add_argument('--cdd_kernel_size', type=int, default=2)
+    parser.add_argument('--cdd_padding', type=int, default=0)
+
+    # data
+    parser.add_argument('--cdd_feature_path', type=str, default='CDD/features_final')
+    # save
+    parser.add_argument('--cdd_save_path', type=str, default='CDD/results')
+    parser.add_argument('--cdd_exp_name', type=str, default=None)
+    # repeat
+    parser.add_argument('--cdd_num_eval', type=int, default=3)
+
+    # hparms for ours
+    parser.add_argument('--cdd_lr_seed_vec', type=float, default=1e-1)
+    parser.add_argument('--cdd_lr_iteration', type=list, default=[2000, 3000, 4000])
+    parser.add_argument('--cdd_lr_decoder', type=float, default=1e-2)
+    parser.add_argument('--cdd_linear_schedule', action='store_true')
+
+
+    # image syn evaluation
+    parser.add_argument('--cdd_model_eval_pool', type=str, default="ConvNet")
+    parser.add_argument('--cdd_epoch', type=int, default=200)
+    parser.add_argument('--cdd_lr', type=float, default=0.01)
+    parser.add_argument('--cdd_print_every', type=int, default=100)
+    parser.add_argument('--cdd_eval_every', type=int, default=500)
+    parser.add_argument('--cdd_buffer_every', type=int, default=100)
+    parser.add_argument('--cdd_not_eval', action='store_true')
 
     opts = parser.parse_args()
+
+    # glue the args together without modifying the original kfs code
+    opts.cdd_dataset = opts.dataset
+    opts.cdd_data_path = opts.data_path
+    opts.cdd_seed = opts.seed
+    
+    opts.gpu_id = opts.device # 0 1 -1
+    opts.cdd_gpu_id = opts.gpu_id 
+
+    opts.device = f'cuda:{opts.gpu_id}' if int(opts.gpu_id) >= 0 else 'cpu'
+    opts.cdd_device = opts.device
+
+    return opts
+
+
+    
+
+
+# Params
+class OPT:
+
+    opts = get_opts()
+
     table = beautify_args(opts)
     print(table)
 
@@ -122,7 +204,7 @@ class OPT:
     # Model parameters
     MODEL = opts.model
     PRETRAINED = opts.pretrained
-    DEVICE = f'cuda:{opts.device}' if opts.device != '-1' else 'cpu'
+    DEVICE = opts.device
 
     # Load pretrained models on first and second half
     LOAD_FISRT_SECOND_HALF_MODELS = True
@@ -164,7 +246,7 @@ class OPT:
 
     #######CDD#######
 
-    CDD_ITERATIONS = opts.cdd_iterations
+    CDD_ITERATIONS = opts.cdd_iteration
 
     ######ICARL#######
     KEEP = 15
@@ -173,6 +255,3 @@ class OPT:
     IMG_SHAPE = DSET_IMG_SHAPE[opts.dataset]
     MEMORY_SIZE = opts.buffer_size
     EMB_SIZE = 64 # 64 for resnet32
-
-
-    
