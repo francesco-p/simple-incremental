@@ -75,9 +75,9 @@ class ICARL_ReplayMemory:
         """
         mu = None 
         for x in dataloader:
-            x = x.to(OPT.DEVICE)
+            x = x.to(OPT.device)
             x = x.to(torch.float32)
-            #normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
+            #normalization = stats.DSET_NORMALIZATION[OPT.dataset]
             #x = normalization(x)
             embeddings = self.phi(x)
             if mu == None:
@@ -99,7 +99,7 @@ class ICARL_ReplayMemory:
 
         # Given a task, it extracts the images of each class
         print("Constructing examplar set...")
-        for i in tqdm(range(0, OPT.NUM_CLASSES)):
+        for i in tqdm(range(0, OPT.num_classes)):
             the_images = data[labels == i]
 
             # and select the most representative examplars to be stored
@@ -121,14 +121,14 @@ class ICARL_ReplayMemory:
         # This is a speedup hack to compute the examplars without using a dataloader
         # it works for a small batch size, if this does not work, use the commented code
         if k != 0:
-            inp = self.P[the_class, :k].to(OPT.DEVICE)
+            inp = self.P[the_class, :k].to(OPT.device)
             examplars_mu = self.phi(inp)[-1].mean(dim=0)
             examplars_mu = examplars_mu.view(-1).unsqueeze(0)
             self.P[the_class, :k].to('cpu')
         else:
-            examplars_mu = torch.zeros((self.emb_size)).to(OPT.DEVICE).unsqueeze(0)
+            examplars_mu = torch.zeros((self.emb_size)).to(OPT.device).unsqueeze(0)
         #------- INSTEAD OF ------------#        
-        #examplars_loader = DataLoader(self.P[the_class, :k], batch_size=OPT.BATCH_SIZE, shuffle=False)
+        #examplars_loader = DataLoader(self.P[the_class, :k], batch_size=OPT.batch_size, shuffle=False)
         #examplars_mu = self.compute_mean_feat_with_dloader(examplars_loader)
         #-------------------#
 
@@ -139,12 +139,12 @@ class ICARL_ReplayMemory:
         dist = torch.zeros((len(dataloader.dataset)))
 
         for i, x in enumerate(dataloader):
-            x = x.to(OPT.DEVICE)
+            x = x.to(OPT.device)
             x = x.to(torch.float32)
-            #normalization = stats.DSET_NORMALIZATION[OPT.DATASET]
+            #normalization = stats.DSET_NORMALIZATION[OPT.dataset]
             #x = normalization(x)
-            start_idx = i * OPT.BATCH_SIZE
-            end_idx = start_idx + OPT.BATCH_SIZE
+            start_idx = i * OPT.batch_size
+            end_idx = start_idx + OPT.batch_size
             
             # Compute the embeddings of the images
             embeddings = self.phi(x)
@@ -178,7 +178,7 @@ class ICARL_ReplayMemory:
         self._remove_classifier_head()
 
         # Compute the mean of the images of the current class
-        dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False)
+        dataloader = DataLoader(the_images, batch_size=OPT.batch_size, shuffle=False)
         mu = self.compute_mean_feat_with_dloader(dataloader)
         
         # Iteratively selects the most representative images up to m
@@ -187,7 +187,7 @@ class ICARL_ReplayMemory:
             dist = torch.zeros((the_images.shape[0]))
 
             # Compute the distances between the images and the mean
-            dataloader = DataLoader(the_images, batch_size=OPT.BATCH_SIZE, shuffle=False)
+            dataloader = DataLoader(the_images, batch_size=OPT.batch_size, shuffle=False)
             dist = self.compute_distances(dataloader, the_class, k, mu)
                 
             # Find the image with the minimum distance
@@ -226,10 +226,10 @@ class ICARL(Base):
     def __init__(self, model) -> None:
         super().__init__()
         self.model = model
-        self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.lr, weight_decay=OPT.wd)
         self.loss_fn = nn.CrossEntropyLoss()
         self.name = "ICARL"
-        self.replay_memory = ICARL_ReplayMemory(self.model, OPT.NUM_CLASSES, OPT.IMG_SHAPE, OPT.EMB_SIZE, K=OPT.MEMORY_SIZE)
+        self.replay_memory = ICARL_ReplayMemory(self.model, OPT.num_classes, OPT.img_shape, OPT.emb_size, K=OPT.buffer_size)
 
 
     def compute_distillation_loss(self, old_model):
@@ -242,15 +242,15 @@ class ICARL(Base):
 
         # Get the examplar set
         replay_buffer = self.replay_memory.get_examplars_dset()
-        loader = DataLoader(replay_buffer, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=OPT.NUM_WORKERS)
+        loader = DataLoader(replay_buffer, batch_size=OPT.batch_size, shuffle=True, num_workers=OPT.num_workers)
         
-        old_model.to(OPT.DEVICE)
+        old_model.to(OPT.device)
         old_model.train()
         seen = 0
         distill_loss = 0.
         for x, y in loader:
-            x = x.to(OPT.DEVICE)
-            y = y.to(OPT.DEVICE)
+            x = x.to(OPT.device)
+            y = y.to(OPT.device)
 
             old_outputs = check_output(old_model(x))['y_hat']
             new_outputs = check_output(self.model(x))['y_hat']
@@ -264,7 +264,7 @@ class ICARL(Base):
 
     def train(self, train_loader, val_loader, writer, tag, scheduler=False):
 
-        self.model.to(OPT.DEVICE)
+        self.model.to(OPT.device)
         
         # Previous frozen model
         old_model = copy.deepcopy(self.model)
@@ -280,7 +280,7 @@ class ICARL(Base):
             self.replay_memory.visualize_examplars()
 
         
-        for epoch in range(0, OPT.EPOCHS_CONT):
+        for epoch in range(0, OPT.epochs):
             print(f'    EPOCH {epoch} ')
 
             ##################
@@ -292,13 +292,13 @@ class ICARL(Base):
 
             for x, y in train_loader:
                 # Move to GPU
-                x = x.to(OPT.DEVICE)
-                y = y.to(OPT.DEVICE)
+                x = x.to(OPT.device)
+                y = y.to(OPT.device)
 
                 y_hat = check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
                 
-                y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+                y_onehot = F.one_hot(y, num_classes=OPT.num_classes).to(torch.float32)
                 loss_train = self.loss_fn(y_hat, y_onehot)
 
                 # Backward
@@ -327,9 +327,9 @@ class ICARL(Base):
 
             ####################
             #### Validation ####
-            if (epoch == 0) or ((epoch % OPT.EVAL_EVERY_CONT) == 0):
+            if (epoch == 0) or ((epoch % OPT.eval_every) == 0):
                 eval_loss, eval_acc = self.eval(val_loader, writer, tag)
-                #torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}_{OPT.MODEL}.pt')
+                #torch.save(self.model.state_dict(), OPT.chk_folder+f'/{tag}_{epoch:04}_{OPT.model}.pt')
 
 
     def eval(self, val_loader, writer, tag):
@@ -342,15 +342,15 @@ class ICARL(Base):
             for x, y in val_loader:
 
                 # Move to GPU
-                x = x.to(OPT.DEVICE)
-                y = y.to(OPT.DEVICE)
+                x = x.to(OPT.device)
+                y = y.to(OPT.device)
 
                 # Forward to model
                 y_hat = check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
                 y_hat = torch.softmax(y_hat, dim=1)
                 
-                y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+                y_onehot = F.one_hot(y, num_classes=OPT.num_classes).to(torch.float32)
                 loss_test = self.loss_fn(y_hat, y_onehot)
 
                 # Compute measures
@@ -374,7 +374,7 @@ class ICARL(Base):
         else:
             print(f'        {tag}_{session:<6} - l:{loss_dstll+loss_ce:.5f} = l_dstll:{loss_dstll:.5f} + l_ce:{loss_ce:.5f}  a:{acc:.5f}')
 
-        if OPT.TENSORBOARD:
+        if OPT.tboard:
             writer.add_scalar(f'{tag}/loss_ce/{session}', loss_ce, epoch)
             writer.add_scalar(f'{tag}/loss_dstll/{session}', loss_dstll, epoch)
             writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
@@ -382,10 +382,10 @@ class ICARL(Base):
 
     def get_csv_name(self):
         
-        dset_task = f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks"
-        strategy_model = f"ICARL_mem{OPT.MEMORY_SIZE}_{OPT.MODEL.replace('_','')}"
-        epochs =f"epochs{OPT.EPOCHS_CONT}.csv"
+        dset_task = f"{OPT.dataset}_{OPT.num_tasks}tasks"
+        strategy_model = f"ICARL_mem{OPT.buffer_size}_{OPT.model.replace('_','')}"
+        epochs =f"epochs{OPT.epochs}.csv"
 
         fname = f"{dset_task}_{strategy_model}_{epochs}"
-        return os.path.join(OPT.CSV_FOLDER, fname)
+        return os.path.join(OPT.csv_folder, fname)
     

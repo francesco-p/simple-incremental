@@ -123,7 +123,7 @@ def convert_to_task_dataset(task_loader):
     return TaskDataset(task_loader.dataset, task_loader.dataset.indices)
 
 
-def get_dset_data(dataset, data_folder=OPT.DATA_FOLDER, train = True):
+def get_dset_data(dataset, data_folder=OPT.data_path, train = True):
     """ Return a dataset object """
 
     if dataset == 'CIFAR10':
@@ -258,8 +258,8 @@ def split_data_in_tasks_with_warmup(data, num_tasks, bsize, workers=8):
 
 def gen_all_core50_tasks():
     """Generate task benchmark for core50 without splitting into scenarios"""
-    dataset = AllCore50Dataset(OPT.DATA_FOLDER, scenario_n=-1, transform=stats.DSET_TRANSF['Core50'])
-    return split_data_in_tasks(dataset, 11, OPT.BATCH_SIZE, OPT.NUM_WORKERS)
+    dataset = AllCore50Dataset(OPT.data_path, scenario_n=-1, transform=stats.DSET_TRANSF['Core50'])
+    return split_data_in_tasks(dataset, 11, OPT.batch_size, OPT.num_workers)
 
 
 def gen_core50_tasks():
@@ -274,17 +274,17 @@ def gen_core50_tasks():
     subsets = []
 
     for i in task_id[:-1]:
-        dataset = Core50Dataset(OPT.DATA_FOLDER, scenario_n=i, transform=stats.DSET_TRANSF['Core50'])
-        (tr_sbs, val_sbs), (train, val) = split_train_val(dataset, batch_size=OPT.BATCH_SIZE, return_subsets=True)
+        dataset = Core50Dataset(OPT.data_path, scenario_n=i, transform=stats.DSET_TRANSF['Core50'])
+        (tr_sbs, val_sbs), (train, val) = split_train_val(dataset, batch_size=OPT.batch_size, return_subsets=True)
         tasks.append((train, val))
         val_dsets.append(val_sbs)
         subsets.append((tr_sbs, val_sbs))
 
 
     # Append the last unseen scenario
-    val_dsets.append(Core50Dataset(OPT.DATA_FOLDER, scenario_n=task_id[-1], transform=stats.DSET_TRANSF['Core50']))
+    val_dsets.append(Core50Dataset(OPT.data_path, scenario_n=task_id[-1], transform=stats.DSET_TRANSF['Core50']))
     val_dset = ConcatDataset(val_dsets)
-    val_loader = DataLoader(val_dset, batch_size=OPT.BATCH_SIZE, shuffle=True, num_workers=OPT.NUM_WORKERS)
+    val_loader = DataLoader(val_dset, batch_size=OPT.batch_size, shuffle=True, num_workers=OPT.num_workers)
     
     return tasks, val_loader, subsets
 
@@ -294,7 +294,7 @@ def gen_core50_tasks():
 if __name__ == '__main__':
     from tqdm import tqdm
     import numpy as np
-    dataset = AllCore50Dataset(OPT.DATA_FOLDER, scenario_n=-1, transform=None)
+    dataset = AllCore50Dataset(OPT.data_path, scenario_n=-1, transform=None)
     
     mean_tensor = torch.zeros((128,128,3))
     for img, label in tqdm(dataset): 

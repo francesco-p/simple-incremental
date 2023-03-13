@@ -11,19 +11,19 @@ from strategies.base import Base
 class Ema(Base):
     def __init__(self, model, decay=0.1) -> None:
         self.model = model
-        self.ema_model = ModelEmaV2(model, device=OPT.DEVICE, decay=decay)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
+        self.ema_model = ModelEmaV2(model, device=OPT.device, decay=decay)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.lr, weight_decay=OPT.wd)
         self.loss_fn = nn.CrossEntropyLoss()
         self.name = "Ema"
 
 
     def train(self, train_loader, val_loader, writer, tag, scheduler=False):
-        self.model.to(OPT.DEVICE)
+        self.model.to(OPT.device)
 
         if scheduler:
-            sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.EPOCHS_CONT, steps_per_epoch=len(train_loader))
+            sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.epochs, steps_per_epoch=len(train_loader))
 
-        for epoch in range(0, OPT.EPOCHS_CONT):
+        for epoch in range(0, OPT.epochs):
             print(f'    EPOCH {epoch} ')
 
             ##################
@@ -34,13 +34,13 @@ class Ema(Base):
             self.model.train()
             for x, y in train_loader:
                 # Move to GPU
-                x = x.to(OPT.DEVICE)
-                y = y.to(OPT.DEVICE)
+                x = x.to(OPT.device)
+                y = y.to(OPT.device)
 
                 # Forward data to model and compute loss
                 y_hat = utils.check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
-                y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+                y_onehot = F.one_hot(y, num_classes=OPT.num_classes).to(torch.float32)
 
                 # Losses
                 l_c = self.loss_fn(y_hat, y_onehot)
@@ -66,7 +66,7 @@ class Ema(Base):
 
             ####################
             #### Validation ####
-            if (epoch == 0) or ((epoch % OPT.EVAL_EVERY_CONT) == 0):
+            if (epoch == 0) or ((epoch % OPT.eval_every) == 0):
                 eval_loss, eval_acc = self.eval(val_loader, writer, tag)
 
 
@@ -84,13 +84,13 @@ class Ema(Base):
             for x, y in val_loader:
 
                 # Move to GPU
-                x = x.to(OPT.DEVICE)
-                y = y.to(OPT.DEVICE)
+                x = x.to(OPT.device)
+                y = y.to(OPT.device)
 
                 # Forward to model
                 y_hat = utils.check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
-                y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+                y_onehot = F.one_hot(y, num_classes=OPT.num_classes).to(torch.float32)
                 loss_test = self.loss_fn(y_hat, y_onehot)
 
                 # Compute measures
@@ -111,7 +111,7 @@ class Ema(Base):
         """ Prints metrics to screen and logs to tensorboard """
         print(f'        {session:<6} - l_c:{loss:.5f} a:{acc:.5f}')
 
-        if OPT.TENSORBOARD:
+        if OPT.tboard:
             writer.add_scalar(f'{tag}/loss_c/{session}', loss, epoch)
             writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
 

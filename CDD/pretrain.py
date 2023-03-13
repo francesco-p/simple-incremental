@@ -10,11 +10,11 @@ import os
 from opt import OPT
 def main(args, dset):
     ''' data set '''
-    channel, im_size, num_classes, normalize, images_all, indices_class, testloader = get_dataset(OPT.DATASET, args.cdd_data_path, dset)
+    channel, im_size, num_classes, normalize, images_all, indices_class, testloader = get_dataset(OPT.dataset, args.cdd_data_path, dset)
 
     #import ipdb; ipdb.set_trace()
     ''' initialize '''
-    print(OPT.DATASET, im_size)
+    print(OPT.dataset, im_size)
     generator = SyntheticImageGenerator(
             num_classes, im_size, args.cdd_num_seed_vec, args.cdd_num_decoder, args.cdd_hdims,
             args.cdd_kernel_size, args.cdd_stride, args.cdd_padding).to(args.cdd_device)
@@ -43,6 +43,6 @@ def main(args, dset):
             print(f'pretrain step {i}: {loss.item()}')
 
     os.makedirs("./pretrained_ae/", exist_ok=True)
-    save_name = f'CDD/pretrained_ae/{OPT.DATASET}_{args.cdd_ipc}_{args.cdd_num_seed_vec}_{args.cdd_num_decoder}_seed_{OPT.SEED}.pth'
+    save_name = f'CDD/pretrained_ae/{OPT.dataset}_{args.cdd_ipc}_{args.cdd_num_seed_vec}_{args.cdd_num_decoder}_seed_{OPT.seed}.pth'
     torch.save(generator.state_dict(), save_name)
 

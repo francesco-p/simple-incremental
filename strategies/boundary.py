@@ -82,7 +82,7 @@ class Boundary(Base):
     def __init__(self, model) -> None:
         super().__init__()
         self.model = model
-        self.optimizer = optim.AdamW(self.model.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=OPT.lr, weight_decay=OPT.wd)
         self.loss_fn = nn.CrossEntropyLoss()
         self.name = "Boundary"
         self.replay_memory = MemoryBuffer()
@@ -105,14 +105,14 @@ class Boundary(Base):
 
 
     def train(self, train_loader, val_loader, writer, tag, scheduler=False):
-        self.model.to(OPT.DEVICE)
+        self.model.to(OPT.device)
 
 
         if scheduler:
-            sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.EPOCHS_CONT, steps_per_epoch=len(train_loader))
+            sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.epochs, steps_per_epoch=len(train_loader))
 
 
-        for epoch in range(0, OPT.EPOCHS_CONT):
+        for epoch in range(0, OPT.epochs):
             print(f'    EPOCH {epoch} ')
 
             ##################
@@ -124,23 +124,23 @@ class Boundary(Base):
             for x, y in train_loader:
 
                 # Move to GPU
-                x = x.to(OPT.DEVICE)
-                y = y.to(OPT.DEVICE)
+                x = x.to(OPT.device)
+                y = y.to(OPT.device)
 
                 # Augment the batch with memory data
                 if tag != '0':
                     replay_x, replay_y = self.replay_memory.get_next_examples(len(train_loader))
-                    x = torch.cat((x, replay_x.to(OPT.DEVICE)), dim=0)
-                    y = torch.cat((y, replay_y.to(OPT.DEVICE)), dim=0)
+                    x = torch.cat((x, replay_x.to(OPT.device)), dim=0)
+                    y = torch.cat((y, replay_y.to(OPT.device)), dim=0)
 
 
                 # Forward data to model and compute loss
                 y_hat = utils.check_output(self.model(x))['y_hat']  
                 y_hat = y_hat.to(torch.float32)
-                y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+                y_onehot = F.one_hot(y, num_classes=OPT.num_classes).to(torch.float32)
                 
                 # I check the gradients only at the last epoch to be faster
-                if epoch == (OPT.EPOCHS_CONT-1):
+                if epoch == (OPT.epochs-1):
                     per_sample_grads = self.compute_sample_grads(x, y_onehot)
                     collapsed_grads = [x.view(x.shape[0], -1).sum(dim=1) for x in per_sample_grads]
                     gradiets_per_example = 0.
@@ -149,9 +149,9 @@ class Boundary(Base):
 
                     # get biggest gradient and keep tot (keep < batch size)
                     sorted_idx = gradiets_per_example.argsort() 
-                    example_with_max_grad = x[sorted_idx][:OPT.KEEP]
-                    label_with_max_grad = y[sorted_idx][:OPT.KEEP]
-                    max_grad = gradiets_per_example[sorted_idx][:OPT.KEEP]
+                    example_with_max_grad = x[sorted_idx][:OPT.boundary_keep]
+                    label_with_max_grad = y[sorted_idx][:OPT.boundary_keep]
+                    max_grad = gradiets_per_example[sorted_idx][:OPT.boundary_keep]
 
                     self.replay_memory.push(example_with_max_grad, label_with_max_grad, max_grad)
                     
@@ -168,7 +168,7 @@ class Boundary(Base):
                     sched.step()
 
                 # Compute measures
-                if epoch == (OPT.EPOCHS_CONT-1):
+                if epoch == (OPT.epochs-1):
                     cumul_loss_train +=  0.
                     
                 else:
@@ -184,9 +184,9 @@ class Boundary(Base):
             ####################
             #### Validation ####
 
-            if (epoch == 0) or ((epoch % OPT.EVAL_EVERY_CONT) == 0):
+            if (epoch == 0) or ((epoch % OPT.eval_every) == 0):
                 eval_loss, eval_acc = self.eval(val_loader, writer, tag)
-                #torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}_{OPT.MODEL}.pt')
+                #torch.save(self.model.state_dict(), OPT.chk_folder+f'/{tag}_{epoch:04}_{OPT.model}.pt')
 
 
     def eval(self, val_loader, writer, tag):
@@ -200,13 +200,13 @@ class Boundary(Base):
             for x, y in val_loader:
 
                 # Move to GPU
-                x = x.to(OPT.DEVICE)
-                y = y.to(OPT.DEVICE)
+                x = x.to(OPT.device)
+                y = y.to(OPT.device)
 
                 # Forward to model
                 y_hat = utils.check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
-                y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+                y_onehot = F.one_hot(y, num_classes=OPT.num_classes).to(torch.float32)
                 loss_test = self.loss_fn(y_hat, y_onehot)
 
                 # Compute measures
@@ -226,12 +226,12 @@ class Boundary(Base):
         """ Prints metrics to screen and logs to tensorboard """
         print(f'        {tag}_{session:<6} - l:{loss:.5f}  a:{acc:.5f}')
 
-        if OPT.TENSORBOARD:
+        if OPT.tboard:
             writer.add_scalar(f'{tag}/loss/{session}', loss, epoch)
             writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
 
 
 
     def get_csv_name(self):
-        return os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{self.name.replace('_','')}_{OPT.MODEL.replace('_','')}.csv")
+        return os.path.join(OPT.csv_folder, f"{OPT.dataset}_{OPT.num_tasks}tasks_{self.name.replace('_','')}_{OPT.model.replace('_','')}.csv")
 

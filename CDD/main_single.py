@@ -20,7 +20,7 @@ from opt import OPT
 
 def main(args, dset_train, dset_test):
     args.cdd_device = torch.device(f"cuda:{args.cdd_gpu_id}")
-    args.cdd_ae_path = f'CDD/pretrained_ae/{OPT.DATASET}_{args.cdd_ipc}_{args.cdd_num_seed_vec}_{args.cdd_num_decoder}_seed_{OPT.SEED}.pth'
+    args.cdd_ae_path = f'CDD/pretrained_ae/{OPT.dataset}_{args.cdd_ipc}_{args.cdd_num_seed_vec}_{args.cdd_num_decoder}_seed_{OPT.seed}.pth'
     #args.cdd_ae_path = f'CDD/pretrained_ae/CIFAR100_1_10_10_default.pth'
     if args.cdd_exp_name is None:
         args.cdd_exp_name = f'{args.cdd_model}_{args.cdd_ipc}_{args.cdd_num_seed_vec}_{args.cdd_num_decoder}'
@@ -48,7 +48,7 @@ def main(args, dset_train, dset_test):
     data_save = []
 
     ''' save path '''
-    save_path = f'{args.cdd_save_path}/{args.cdd_dataset}_{OPT.SEED}/{args.cdd_exp_name}/task{args.cdd_name_folder}'
+    save_path = f'{args.cdd_save_path}/{args.cdd_dataset}_{OPT.seed}/{args.cdd_exp_name}/task{args.cdd_name_folder}'
     os.makedirs(save_path, exist_ok=True)
 
     ''' initialize '''

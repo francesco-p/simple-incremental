@@ -12,13 +12,13 @@ class FinetuningFC(Base):
     def __init__(self, model) -> None:
         super().__init__()
         self.model = model
-        self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=OPT.lr, weight_decay=OPT.wd)
         self.loss_fn = nn.CrossEntropyLoss()
         self.name = "FinetuningFC"
 
 
     def train(self, train_loader, val_loader, writer, tag, scheduler=False):
-        self.model.to(OPT.DEVICE)
+        self.model.to(OPT.device)
         
         for p in self.model.parameters():
             p.requires_grad=False
@@ -27,9 +27,9 @@ class FinetuningFC(Base):
             p.requires_grad=True
 
         if scheduler:
-            sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.EPOCHS_CONT, steps_per_epoch=len(train_loader))
+            sched = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, 0.01, epochs=OPT.epochs, steps_per_epoch=len(train_loader))
 
-        for epoch in range(0, OPT.EPOCHS_CONT):
+        for epoch in range(0, OPT.epochs):
             print(f'    EPOCH {epoch} ')
 
             ##################
@@ -40,13 +40,13 @@ class FinetuningFC(Base):
             self.model.train()
             for x, y in train_loader:
                 # Move to GPU
-                x = x.to(OPT.DEVICE)
-                y = y.to(OPT.DEVICE)
+                x = x.to(OPT.device)
+                y = y.to(OPT.device)
 
                 # Forward data to model and compute loss
                 y_hat = utils.check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
-                y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+                y_onehot = F.one_hot(y, num_classes=OPT.num_classes).to(torch.float32)
                 loss_train = self.loss_fn(y_hat, y_onehot)
 
                 # Backward
@@ -70,9 +70,9 @@ class FinetuningFC(Base):
 
             ####################
             #### Validation ####
-            if (epoch == 0) or ((epoch % OPT.EVAL_EVERY_CONT) == 0):
+            if (epoch == 0) or ((epoch % OPT.eval_every) == 0):
                 eval_loss, eval_acc = self.eval(val_loader, writer, tag)
-                #torch.save(self.model.state_dict(), OPT.CHK_FOLDER+f'/{tag}_{epoch:04}_{OPT.MODEL}.pt')
+                #torch.save(self.model.state_dict(), OPT.chk_folder+f'/{tag}_{epoch:04}_{OPT.model}.pt')
 
 
     def eval(self, val_loader, writer, tag):
@@ -85,13 +85,13 @@ class FinetuningFC(Base):
             for x, y in val_loader:
 
                 # Move to GPU
-                x = x.to(OPT.DEVICE)
-                y = y.to(OPT.DEVICE)
+                x = x.to(OPT.device)
+                y = y.to(OPT.device)
 
                 # Forward to model
                 y_hat = utils.check_output(self.model(x))['y_hat']
                 y_hat = y_hat.to(torch.float32)
-                y_onehot = F.one_hot(y, num_classes=OPT.NUM_CLASSES).to(torch.float32)
+                y_onehot = F.one_hot(y, num_classes=OPT.num_classes).to(torch.float32)
                 loss_test = self.loss_fn(y_hat, y_onehot)
 
                 # Compute measures
@@ -111,9 +111,9 @@ class FinetuningFC(Base):
         """ Prints metrics to screen and logs to tensorboard """
         print(f'        {tag}_{session:<6} - l:{loss:.5f}  a:{acc:.5f}')
 
-        if OPT.TENSORBOARD:
+        if OPT.tboard:
             writer.add_scalar(f'{tag}/loss/{session}', loss, epoch)
             writer.add_scalar(f'{tag}/acc/{session}', acc, epoch)
 
     def get_csv_name(self):
-        return os.path.join(OPT.CSV_FOLDER, f"{OPT.DATASET}_{OPT.NUM_TASKS}tasks_{self.name.replace('_','')}_{OPT.MODEL.replace('_','')}.csv")
+        return os.path.join(OPT.csv_folder, f"{OPT.dataset}_{OPT.num_tasks}tasks_{self.name.replace('_','')}_{OPT.model.replace('_','')}.csv")

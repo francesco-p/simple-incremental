@@ -34,32 +34,31 @@ import CDD.main_single as main_single
 from opt import OPT
 
 def main():
-    args = OPT.opts
 
-    utils.set_seeds(args.seed)
+    utils.set_seeds(OPT.seed)
     print("###########################################")
     print("########### DATASET PREPARATION ###########")
 
-    if OPT.DATASET == 'Core50':
+    if OPT.dataset == 'Core50':
         # Core50 does not support warmup
         tasks, validation, subsets = dset.gen_core50_tasks()
     else:
-        train_data = dset.get_dset_data(OPT.DATASET, train=True)
-        test_data = dset.get_dset_data(OPT.DATASET, train=False)
-        #_, small_test_loader = dset.split_train_val(test_data, OPT.BATCH_SIZE)
+        train_data = dset.get_dset_data(OPT.dataset, train=True)
+        test_data = dset.get_dset_data(OPT.dataset, train=False)
+        #_, small_test_loader = dset.split_train_val(test_data, OPT.batch_size)
 
-        if OPT.DO_WARMUP:
-            (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = dset.get_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
+        if OPT.do_warmup:
+            (fh_train_loader, fh_val_loader), (sh_train_loader, sh_val_loader), tasks, subsets = dset.get_tasks(train_data, OPT.num_tasks, OPT.batch_size)
         else:
-            tasks, subsets = dset.get_tasks(train_data, OPT.NUM_TASKS, OPT.BATCH_SIZE)
+            tasks, subsets = dset.get_tasks(train_data, OPT.num_tasks, OPT.batch_size)
 
 
     for task_id, (task_train_sbs, task_val_sbs) in enumerate(subsets[0:]):
         t = task_id + 0
         print(f"---Beginning {t}---")
-        args.cdd_name_folder = f"_{t}"
-        pretrain.main(args, task_train_sbs)
-        main_single.main(args, task_train_sbs, task_val_sbs)
+        OPT.cdd_name_folder = f"_{t}"
+        pretrain.main(OPT, task_train_sbs)
+        main_single.main(OPT, task_train_sbs, task_val_sbs)
         print(f"---Ending {t}---")
 
 

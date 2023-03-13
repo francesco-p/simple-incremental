@@ -7,7 +7,7 @@ def beautify_args(args):
     # Create a list of lists containing argument names and values
 
     # Print essential info separately
-    essential = ['project_path', 'data_path']
+    essential = ['ni_project_path', 'data_path']
     for v in essential:
         print(f'{v}: '+vars(args)[v])
 
@@ -44,8 +44,8 @@ def get_opts():
     ###### GENERAL ######
     parser = argparse.ArgumentParser(description='Single task training')
 
-    parser.add_argument('--data_path', type=str, default=f'{os.environ["DATASET_ROOT"]}', help='Path where data is stored')
-    parser.add_argument('--project_path', type=str, default=f'{os.environ["NI_PROJECT"]}', help='Path of current folder')
+    parser.add_argument('--data_path', type=str, default=f'{os.environ["DATA_PATH"]}', help='Path where data is stored')
+    parser.add_argument('--ni_project_path', type=str, default=f'{os.environ["NI_PROJECT_PATH"]}', help='Path of current folder')
     parser.add_argument('--device', type=str, default='0', help='Gpu to use, -1 for cpu')
     # diocane
     parser.add_argument('--gpu_id', type=int, default=1)
@@ -53,6 +53,8 @@ def get_opts():
     #####################
     ###### EXPERIM ######
     parser.add_argument('--model', type=str, default='resnet18', help='Model to use')
+    # [TODO] add automatic emb size detection
+    parser.add_argument('--emb_size', type=int, default=512, help='Embedding size')
     parser.add_argument('--pretrained', default=False, action=argparse.BooleanOptionalAction, help='Use pretrained model')
     
     parser.add_argument('--dataset', type=str, default='Core50', help='Dataset to use')
@@ -160,20 +162,33 @@ def get_opts():
     opts.device = f'cuda:{opts.gpu_id}' if int(opts.gpu_id) >= 0 else 'cpu'
     opts.cdd_device = opts.device
 
+    opts.img_shape = DSET_IMG_SHAPE[opts.dataset]
+
     return opts
 
 
     
+OPT = get_opts()
 
 
-# Params
-class OPT:
+OPT.csv_folder = f'{OPT.ni_project_path}/csv/'
+OPT.chk_folder = f'{OPT.ni_project_path}/chk/'
 
-    opts = get_opts()
+OPT.num_classes = DSET_CLASSES[OPT.dataset]
 
-    table = beautify_args(opts)
-    print(table)
+#ARGS_CONT = {'original_impl':True}
+if OPT.strategy == 'surgicalft':
+    OPT.args_cont = {'layer':OPT.surgical_layer}
+elif OPT.strategy == 'replay' or OPT.strategy == "CDD":
+    OPT.args_cont = {'buffer_size':OPT.buffer_size}
+else:
+    OPT.args_cont = {}
 
+
+table = beautify_args(OPT)
+print(table)
+
+"""
     # Folders
     PROJECT_FOLDER = opts.project_path
     DATA_FOLDER = opts.data_path
@@ -230,13 +245,7 @@ class OPT:
     # Approach params, if no params, leave empty dict
 
     
-    #ARGS_CONT = {'original_impl':True}
-    if METHOD_CONT == 'surgicalft':
-        ARGS_CONT = {'layer':opts.surgical_layer}
-    elif METHOD_CONT == 'replay' or METHOD_CONT == "CDD":
-        ARGS_CONT = {'buffer_size':opts.buffer_size}
-    else:
-        ARGS_CONT = {}
+
 
     LR_CONT = opts.lr
     WD_CONT = opts.wd
@@ -255,3 +264,4 @@ class OPT:
     IMG_SHAPE = DSET_IMG_SHAPE[opts.dataset]
     MEMORY_SIZE = opts.buffer_size
     EMB_SIZE = 64 # 64 for resnet32
+"""

@@ -98,7 +98,7 @@ def evaluate(args, net, image_syn, label_syn, testloader, normalize):
         num_workers=0
     )
 
-    optimizer = torch.optim.Adam(net.parameters(), lr=OPT.LR_CONT, weight_decay=OPT.WD_CONT)
+    optimizer = torch.optim.Adam(net.parameters(), lr=OPT.lr, weight_decay=OPT.wd)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[2 * args.cdd_epoch // 3, 5 * args.cdd_epoch // 6], gamma=0.2)
 

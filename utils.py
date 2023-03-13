@@ -52,7 +52,7 @@ def plot_csv(csv_files, dataset, methods, model):
     plt.show()
     plt.savefig("plot.png")
 
-def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.DEVICE, chk_folder=OPT.CHK_FOLDER):
+def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.device, chk_folder=OPT.chk_folder):
     """ Load model from checkpoint of a given epoch 
     the epoch number is padded with zeros to 4 digits"""
     
@@ -63,7 +63,7 @@ def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.DE
     model = model.to(device)
     return model
 
-def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.DEVICE, chk_folder=OPT.CHK_FOLDER):
+def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.device, chk_folder=OPT.chk_folder):
     """ Load models from checkpoint of a given epoch 
     the epoch number is padded with zeros to 4 digits"""
     
@@ -81,7 +81,7 @@ def load_model(model_name, dataset, num_classes, epoch, seed, tag, device=OPT.DE
 def write_line_to_csv(data, name, append=False, log=True):
     """ Write a line to a csv file. If append is False, the file is overwritten. """
     # Write header
-    header = 'seed,'+','.join([f'task{n+1}' for n in range(OPT.NUM_TASKS)])+',first_half,second_half'
+    header = 'seed,'+','.join([f'task{n+1}' for n in range(OPT.num_tasks)])+',first_half,second_half'
     
     if not os.path.exists(name) or not append:
         with open(name, 'w') as f:
