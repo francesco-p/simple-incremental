@@ -188,7 +188,7 @@ def main(seed):
     utils.write_line_to_csv(row, strategy.get_csv_name(), OPT.append)
     if OPT.dataset == "Core50":
         seaborn.heatmap(matrix, vmin = 0, vmax = 1, annot = True)
-        plt.savefig(f"{OPT.project_folder}/matrices/{strategy.get_csv_name()[:-4].split('/')[-1]}_{OPT.seed}.pdf")
+        plt.savefig(f"{OPT.ni_project_folder}/matrices/{strategy.get_csv_name()[:-4].split('/')[-1]}_{OPT.seed}.pdf")
 
     if OPT.tboard:
         writer.close()
